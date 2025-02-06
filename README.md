@@ -1,5 +1,7 @@
-# tecview
-"Transports en Commun"view is a lightweight (client-side) map to locate bus in real-time using open data.
+# tecviewmap
+"Transports en Commun"view map is a lightweight (client-side) map to locate bus in real-time using open data.
+
+![tecview map](tecview-liege.jpg?raw=true "Tecview map")
 
 While a client-server approach might be more efficient and elegant, it has been developed to be run locally in a single HTML page
 with transit data locally stored, and real-time data coming from an API.
