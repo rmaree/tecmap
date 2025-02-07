@@ -54,4 +54,9 @@ less energy than running a routing algorithm on GAFAM servers. ;)
 ## Run locally
 Open the tecmap.html page in your browser.
 
+## Future plans, contact
+I am aware of the limitations of such a client-side approach. 
+Having a database to store routes and stop and an API called from the web client would be more elegant but for the moment I wanted to keep it very simple.
+Please feel free to submit Issues or contact me on Mastodon.
+
 
