@@ -1,9 +1,9 @@
 ## Introduction to tecmap
-"Transports en Commun" map is a lightweight map to locate bus in real-time using open data. On the map below, buses coordinates are refreshed every 10 secondes and are colored according to delay (by comparing real-time data to static theoretical timetables which can be displayed by clicking on one bus). A simple filter (by bus line number) allows to only display the buses of interest.
+"Transports en Commun" map is a lightweight map to locate bus in real-time using open data. On the map below, buses coordinates are refreshed every 10 secondes and are colored according to delay (by comparing real-time data to static theoretical timetables which can be displayed by clicking on one bus: red > 5 minutes, 0 < orange < 5 minutes, green on time). A simple filter (by bus line number) allows to only display the buses of interest. You can get timelines and other details when you click on a bus marker on the map.
 
 ![tecview map](tecview-liege.jpg?raw=true "Tecview map")
 
-It has been developed using HTML+CSS+Javascript only to be run through a single HTML page. It relies on transit data locally stored, and real-time data coming from a remote API.
+It has been developed using HTML+CSS+Javascript only to be run through a single HTML page without any web framework. It relies on transit data locally stored, and real-time data coming from a remote API.
 This has been tested with GTFS static transit data for Wallonia in Belgium (TEC, downloaded from [https://beltac.tec-wl.be](https://beltac.tec-wl.be/))
 including routes and stops, and real-time traffic information assumed to be accessible through an API that returns it in JSON format.
 
@@ -20,9 +20,9 @@ less energy than running a routing algorithm on GAFAM servers. ;)
    
 5. Convert data using `convert_data.py` Python3 script:
 
-    2.1 `data/stops.txt` will be converted to `data/stops.js`
+    2.1 `data/stops.txt` will be converted to `data/stops.js`  (contains names of bus stops)
    
-    2.2 `data/stop_times.txt` will be converted to `data/stop_times.js`
+    2.2 `data/stop_times.txt` will be converted to `data/stop_times.js`(contains routes with sequences of bus stops and arrival times)
    
 
 ## Edit tecmap.html
@@ -60,11 +60,11 @@ less energy than running a routing algorithm on GAFAM servers. ;)
 3. Edit **TILE_API_KEY** if you want to use the Transport raster tiles from Thunderforest.com [https://www.thunderforest.com/maps/transport/](https://www.thunderforest.com/maps/transport/), otherwise default OSM [https://openstreetmap.org/](https://openstreetmap.org/) raster tiles will be used.
 
 ## Run locally
-Open the tecmap.html page in your browser.
+Open the tecmap.html page in your desktop computer's browser. Or copy the HTML page and data/ to a web server for remote access.
 
 ## Future plans, contact
 I am aware of the limitations of such a client-side approach. 
-Having a database to store routes and stop and an API called from the web client would be more elegant but for the moment I wanted to keep it very simple.
-Please feel free to submit Issues or contact me on Mastodon.
+Having a database to store routes and stops and an API called from the web client would be more elegant but for the moment I wanted to keep it very simple so that anyone can deploy it easily.
+Please feel free to submit Issues or contact me.
 
 
