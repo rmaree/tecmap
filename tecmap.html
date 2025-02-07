@@ -10,8 +10,8 @@
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
     <!-- load local transit data: stops and trips -->
-    <script src="data/tec-transit-stops.js"></script> <!-- loads stopsData  -->
-    <script src="data/horaires.js"></script> <!-- loads horairesData should organize data by routeId or by day or ... ?--> 
+    <script src="data/stops.js"></script>  <!-- loads stopsData  -->
+    <script src="data/stop_times.js"></script> <!-- loads horairesData should organize data by routeId or by day or ... ?--> 
 
     <!-- Style FontAwesome pour les icônes -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -106,10 +106,10 @@
   <script>
    //Chargement données arrêts (local)
    // the real-time API end-point
-   let RT_API_URL = '';
+   let RT_API_URL = ''; // the real-time API end-point
+   let RT_REFRESH_RATE = 10000;
    // the tile server API key
-   let TILE_API_KEY = '';
-   let stopsMapping = parseGTFS(stopsData);
+   let TILE_API_KEY = ''; // the tile server API key
    let busMarkers = {};  // Marqueurs des bus
 
    
@@ -166,21 +166,6 @@
        fetchRealTimeBusData(); // Recupere data apres la suppression du filtre
    }
    
-   //Parsing des stops au format GTFS
-   function parseGTFS(jsonData) {
-       let stopsMap = {};
-       
-       if (jsonData.type === "FeatureCollection" && Array.isArray(jsonData.features)) {
-	   jsonData.features.forEach(feature => {
-	       if (feature.properties && feature.properties.stop_id && feature.properties.stop_name) {
-		   stopsMap[feature.properties.stop_id] = feature.properties.stop_name;
-	       }
-	   });
-       }
-       return stopsMap; // Renvoie un objet { stop_id: stop_name, ... }
-   };
-
-
    // Calcul du nombre de minutes depuis le démarrage du bus
    // not used anymore
    function getTimeSinceStart(startTime) {
@@ -197,7 +182,7 @@
    // Recupere le nom lisible d'un arret
    function getStopName(stopId, stopsMap) {
        if (stopId) {
-	   return stopsMap['2283-'+stopId.toUpperCase()] || "Arrêt inconnu";
+	   return stopsMap[stopId] || "Arrêt inconnu";
        }
    }
 
@@ -213,8 +198,8 @@
 
    // Détermine la couleur de l'icône du bus en fonction de son retard
    function getBusDelayColor(delay) {
-       if (delay > 5) return "red";
-       else if (delay > 0 && delay < 5) return "orange"; 
+       if (delay > 0 && delay < 5) return "orange"; 
+       else if (delay >= 5) return "red";
        else return "green";
    }
 
@@ -229,10 +214,10 @@
 
    // Convertir temps lisible en timestamp UNIX
    function timeToUnixTimestamp(timeStr, referenceDate = new Date()) {
-       const [hours, minutes, seconds] = timeStr.split(":").map(Number);
+       const [hours, minutes] = timeStr.split(":").map(Number);  //time is formatted HH:MM
        // Copier la date de référence Unix et mettre l'heure indiquée
        const date = new Date(referenceDate);
-       date.setHours(hours, minutes, seconds, 0);
+       date.setHours(hours, minutes, 0, 0);
        // Retourner le timestamp Unix en secondes
        return Math.floor(date.getTime() / 1000);
    }
@@ -240,15 +225,16 @@
    
    // Calcule le retard d'un bus etant donnee le trajet theorique (schedule), le prochain arrêt, et le timestamp temps reel
    function estimateDelay(schedule,currentStopSequence,timestamp) {
-       //comparer l'heure qu'il est avec l'heure à laquelle il est supposé demarrer du prochain arret, si heure courante superieure = retard
-       return Math.round((timestamp - timeToUnixTimestamp(schedule[currentStopSequence-1].departure_time))/60);	 
+       //comparer l'heure qu'il est avec l'heure à laquelle il est supposé arriver au prochain arret, si heure courante superieure = retard
+       if (schedule[currentStopSequence-1])
+	   return Math.round((timestamp - timeToUnixTimestamp(schedule[currentStopSequence-1].a))/60);
    }
 
    // Retourne le nom lisible du premier arrêt d'un trajet
    function getStartPoint(tripId) {
        const schedule = horairesData[tripId]; // busSchedules doit contenir les données du fichier
        if (schedule)
-	   return getStopName(schedule[0].stop_id,stopsMapping)
+	   return getStopName(schedule[0].s,stopsData)  //s = stopId
        else return " "
    }
 
@@ -256,7 +242,7 @@
    function getEndPoint(tripId) {
        const schedule = horairesData[tripId]; // busSchedules doit contenir les données du fichier
        if (schedule)
-	   return getStopName(schedule[(schedule.length)-1].stop_id,stopsMapping)
+	   return getStopName(schedule[(schedule.length)-1].s,stopsData)  // s = stopId
        else return " "
 
    }
@@ -285,15 +271,16 @@
        let scheduleHtml = "<ul>";
        //scheduleHtml += `Delta estimé: ${estimate `;
        schedule.forEach(entry => {
-	   const stopName = getStopName(entry.stop_id,stopsMapping);
-	   const isNextStop = entry.stop_id === nextStopId;
+	   const stopName = getStopName(entry.s,stopsData);
+	   const isNextStop = entry.s === nextStopId;
+	   // entry.a = arrival_time
 	   if (isNextStop)
 	       scheduleHtml += `<li ${isNextStop ? 'style="font-weight: bold; "' : ''}>
-         ${entry.arrival_time.slice(0, 5)} <span style="color: red;"> ${stringdelay} </span> - ${stopName} 
+         ${entry.a.slice(0, 5)} <span style="color: red;"> ${stringdelay} </span> - ${stopName} 
          </li>`;
 	   else
 	       scheduleHtml += `<li ${isNextStop ? 'style="font-weight: bold; "' : ''}>
-         ${entry.arrival_time.slice(0, 5)} - ${stopName} 
+         ${entry.a.slice(0, 5)} - ${stopName} 
          </li>`;		 
 	   
        });
@@ -339,14 +326,14 @@
 	       // Appliquer le filtre (si non vide)
 	       if (filterValue && trip.route_short_name.toString() !== filterValue) return;
 	       
-	       const nextStopName = getStopName(bus.stopId,stopsMapping);
+	       const nextStopName = getStopName(bus.stopId,stopsData);
 	       // not used anymore
 	       //const timeSinceStart = getTimeSinceStart(bus.trip.startTime);
 	       const startPoint = getStartPoint(bus.trip.tripId);
 	       const endPoint = getEndPoint(bus.trip.tripId);
 
 	       //Bus icon color can be either based on delay, or on bus speed.
-	       const schedule = horairesData[bus.trip.tripId]; 
+	       const schedule = horairesData[bus.trip.tripId];
 	       const delay = schedule ? estimateDelay(schedule,bus.currentStopSequence,bus.timestamp) : 0;
 	       const busColor = getBusDelayColor(delay);
 	       //const busColor = getBusSpeedColor(speed);
@@ -403,7 +390,7 @@
 
    // Rafraîchir toutes les 6 secondes
    fetchRealTimeBusData();
-   setInterval(fetchRealTimeBusData, 10000);
+   setInterval(fetchRealTimeBusData, RT_REFRESH_RATE);
 
   </script>
 </body>
