@@ -1,4 +1,4 @@
-# tecmap
+## Introduction to tecmap
 "Transports en Commun" map is a lightweight map to locate bus in real-time using open data.
 
 ![tecview map](tecview-liege.jpg?raw=true "Tecview map")
@@ -13,11 +13,11 @@ or someone having a good time with a loved one but not willing to miss the very 
 Please note no automatic planning is provided, you must use your mental calculation skills to construct your route, which in principle consumes 
 less energy than running a routing algorithm on GAFAM servers. ;)
 
-##Data preparation
+## Data preparation
 Download GTFS routes and stops data 
 Process data using python scripts and put processed Javascript files into the data/ directory.
 
-#Edit tecmap.html
+## Edit tecmap.html
 1. Edit your **tecmap.html** `<script src="...">` if local files are not located in data/ or named in another way.
 2. Edit **RT_API_URL** so that it refers to the API endpoint that returns real-time traffic data in JSON format (gtfsRealtimeVersion": "1.0"), expected to be formatted as follows:
 
@@ -51,7 +51,7 @@ Process data using python scripts and put processed Javascript files into the da
 
 3. Edit **TILE_API_KEY** if you want to use the Transport raster tiles from Thunderforest.com [https://www.thunderforest.com/maps/transport/](https://www.thunderforest.com/maps/transport/), otherwise default OSM raster tiles will be used.
 
-#Run locally
+## Run locally
 Open the tecmap.html page in your browser.
 
 
