@@ -1,5 +1,5 @@
 ## Introduction to tecmap
-"Transports en Commun" map is a lightweight map to locate bus in real-time using open data.
+"Transports en Commun" map is a lightweight map to locate bus in real-time using open data. On the map below, buses coordinates are refreshed every 10 secondes and are colored according to delay (by comparing real-time data to static theoretical timetables which can be displayed by clicking on one bus). A simple filter (by bus line number) allows to only display the buses of interest.
 
 ![tecview map](tecview-liege.jpg?raw=true "Tecview map")
 
