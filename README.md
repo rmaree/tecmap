@@ -14,8 +14,8 @@ Please note no automatic planning is provided, you must use your mental calculat
 less energy than running a routing algorithm on GAFAM servers. ;)
 
 ## Data preparation
-Download GTFS routes and stops data 
-Process data using python scripts and put processed Javascript files into the data/ directory.
+1. Download GTFS routes and stops data 
+2. Process data using `convert_data.py` Python3 script and put processed Javascript files into the data/ directory.
 
 ## Edit tecmap.html
 1. Edit your **tecmap.html** `<script src="...">` if local files are not located in data/ or named in another way.
