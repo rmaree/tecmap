@@ -49,7 +49,7 @@ less energy than running a routing algorithm on GAFAM servers. ;)
 ```
 
 
-3. Edit **TILE_API_KEY** if you want to use the Transport raster tiles from Thunderforest.com [https://www.thunderforest.com/maps/transport/](https://www.thunderforest.com/maps/transport/), otherwise default OSM raster tiles will be used.
+3. Edit **TILE_API_KEY** if you want to use the Transport raster tiles from Thunderforest.com [https://www.thunderforest.com/maps/transport/](https://www.thunderforest.com/maps/transport/), otherwise default OSM [https://openstreetmap.org/](https://openstreetmap.org/) raster tiles will be used.
 
 ## Run locally
 Open the tecmap.html page in your browser.
