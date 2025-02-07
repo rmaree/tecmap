@@ -14,7 +14,7 @@ Please note no automatic planning is provided, you must use your mental calculat
 less energy than running a routing algorithm on GAFAM servers. ;)
 
 ## Data preparation
-1. Download GTFS routes and stops data 
+1. Download GTFS routes and stops data (e.g. from [https://beltac.tec-wl.be](https://beltac.tec-wl.be/) or [https://busmaps.com/en/belgium/TEC-Transit/tec-transit](https://busmaps.com/en/belgium/TEC-Transit/tec-transit))
 2. Process data using `convert_data.py` Python3 script and put processed Javascript files into the data/ directory.
 
 ## Edit tecmap.html
