@@ -15,9 +15,13 @@ less energy than running a routing algorithm on GAFAM servers. ;)
 
 ## Data preparation
 1. Create `data/` local directory
-2. Download into ´data/`local directory GTFS routes and stops data (latest version from [[https://beltac.tec-wl.be](https://beltac.tec-wl.be/Current%20GTFS/)]([https://beltac.tec-wl.be/](https://beltac.tec-wl.be/Current%20GTFS/)) or [https://busmaps.com/en/belgium/TEC-Transit/tec-transit](https://busmaps.com/en/belgium/TEC-Transit/tec-transit))
-3. Convert data using `convert_data.py` Python3 script:
+   
+3. Download into ´data/` local directory GTFS routes and stops data (latest version from [https://beltac.tec-wl.be](https://beltac.tec-wl.be/Current%20GTFS/) or [https://busmaps.com/en/belgium/TEC-Transit/tec-transit](https://busmaps.com/en/belgium/TEC-Transit/tec-transit) )
+   
+5. Convert data using `convert_data.py` Python3 script:
+
     2.1 `data/stops.txt` will be converted to `data/stops.js`
+   
     2.2 `data/stop_times.txt` will be converted to `data/stop_times.js`
    
 
