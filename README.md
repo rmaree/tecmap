@@ -1,5 +1,5 @@
 ## Introduction to tecmap
-"Transports en Commun" map is a lightweight map to locate bus in real-time using open data. On the map below, buses coordinates are refreshed every 10 secondes and are colored according to delay (by comparing real-time data to static theoretical timetables which can be displayed by clicking on one bus: red > 5 minutes, 0 < orange < 5 minutes, green on time). A simple filter (by bus line number) allows to only display the buses of interest. You can get timelines and other details when you click on a bus marker on the map.
+"Transports en Commun" map is a lightweight map to locate bus in real-time using open data. On the map below, buses coordinates are refreshed every 10 seconds and are colored according to delay (by comparing real-time data to static theoretical timetables which can be displayed by clicking on one bus: red > 5 minutes, 0 < orange < 5 minutes, green on time). A simple filter (by bus line numbers) allows to only display the buses of interest. You can get timelines and other details when you click on a bus marker on the map.
 
 ![tecview map](tecview-liege.jpg?raw=true "Tecview map")
 
@@ -8,8 +8,9 @@ This has been tested with GTFS static transit data for Wallonia in Belgium (TEC,
 including routes and stops, and real-time traffic information assumed to be accessible through an API that returns it in JSON format.
 
 The typical use cases are individuals willing to know if their buses are on time to plan their trips, e.g. someone at home who doesn't 
-want to wait 10 minutes outside in the cold, or someone at their desk who wants to optimize their life and work until the last minute before their bus comes,
-or someone having a good time with a loved one but not willing to miss the very last bus. ;)
+want to wait 10 minutes outside in the cold, or someone who has the possibility of taking several different buses and wants to know which one will arrive first,
+or someone at their desk who wants to optimize their life and work until the last minute before their bus comes, or someone having a good time with a loved one 
+but not willing to miss the very last bus. ;) Another use case is someone willing to discover new places they can reach with public transport without knowing the existing routes a priori.
 Please note no automatic planning is provided, you must use your mental calculation skills to construct your route, which in principle consumes 
 less energy than running a routing algorithm on GAFAM servers. ;)
 
@@ -23,10 +24,11 @@ less energy than running a routing algorithm on GAFAM servers. ;)
     2.1 `data/stops.txt` will be converted to `data/stops.js`  (contains names of bus stops)
    
     2.2 `data/stop_times.txt` will be converted to `data/stop_times.js`(contains routes with sequences of bus stops and arrival times)
+   I recommend to split original data into multiple .js files using the filter_strings, and load in tecmap.html the appropriate js file on-the-fly according e.g. to the day of the week.
    
 
 ## Edit tecmap.html
-1. Edit your **tecmap.html** `<script src="...">` if local files are not located in data/ or named in another way.
+1. Edit your **tecmap.html** `<script src="...">` if local files are not located in data/ or named in another way e.g. in the case of multiple files with splitted information per day.
 2. Edit **RT_API_URL** so that it refers to the API endpoint that returns real-time traffic data in JSON format (gtfsRealtimeVersion": "1.0"), expected to be formatted as follows:
 
 ```
