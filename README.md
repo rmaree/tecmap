@@ -24,7 +24,7 @@ less energy than running a routing algorithm on GAFAM servers. ;)
     2.1 `data/stops.txt` will be converted to `data/stops.js`  (contains names of bus stops)
    
     2.2 `data/stop_times.txt` will be converted to `data/stop_times.js`(contains routes with sequences of bus stops and arrival times)
-   I recommend to split original data into multiple files using the filter_strings, and load in tecmap.html the appropriate data on-the-fly according e.g. to the day of the week.
+   I recommend to split original data into multiple .js files using the filter_strings, and load in tecmap.html the appropriate js file on-the-fly according e.g. to the day of the week.
    
 
 ## Edit tecmap.html
