@@ -11,7 +11,7 @@
 
     <!-- load local transit data: stops and trips -->
     <script src="data/stops.js"></script>  <!-- loads stopsData  -->
-    <script src="data/stop_times.js"></script> <!-- loads horairesData should organize data by routeId or by day or ... ?--> 
+    <!-- <script src="data/stop_times.js"></script> --> <!-- loads horairesData should organize data by routeId or by day or ... ?--> 
 
     <!-- Style FontAwesome pour les icônes -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -106,10 +106,10 @@
   <script>
    //Chargement données arrêts (local)
    // the real-time API end-point
-   let RT_API_URL = ''; // the real-time API end-point
-   let RT_REFRESH_RATE = 10000;
+   const RT_API_URL = ''; // the real-time API end-point
+   const RT_REFRESH_RATE = 10000; // refresh real-time traffic data every 10 seconds
    // the tile server API key
-   let TILE_API_KEY = ''; // the tile server API key
+   const TILE_API_KEY = ''; // the tile server API key
    let busMarkers = {};  // Marqueurs des bus
 
    
@@ -160,6 +160,30 @@
 
    // ---------------------------------------------------------------------------------------------
    // Definitions de fonctions utilitaires
+   // Fonction pour charger dynamiquement le fichier des horaires en fonction du jour
+   function loadScheduleFile() {
+       const dayOfWeek = new Date().getDay(); 
+       let scriptFile = "data/stop_times-SEM.js"; // Par défaut, horaires pour les jours de la semaine
+
+       if (dayOfWeek === 0) { // Dimanche
+           scriptFile = "data/stop_times-DIM.js";
+       } else if (dayOfWeek === 6) { // Samedi
+           scriptFile = "data/stop_times-SAM.js";
+       } else if (dayOfWeek === 3) { // Mercredi
+           scriptFile = "data/stop_times-MER.js";
+       }
+
+       // Créer et insérer dynamiquement un script
+       const script = document.createElement("script");
+       script.src = scriptFile;
+       script.onload = () => console.log(`Horaires théoriques chargés depuis ${scriptFile}`);
+       script.onerror = () => console.error(`Erreur de chargement du fichier ${scriptFile}`);
+
+       document.head.appendChild(script);
+   }
+
+   
+
    // Fonction pour nettoyer le filtre
    function clearFilter() {
        document.getElementById('busFilter').value = '';
@@ -307,7 +331,7 @@
            const data = await response.json();
 
 	   // Récupère la valeur du filtre de ligne entré par l'utilisateur.ice
-	   const filterValue = document.getElementById('busFilter').value.trim();
+	   let filterValues = document.getElementById('busFilter').value.split(" ").map(num => num.trim()); // Convertit en tableau
 
 	   // Vérifier et initialiser busMarkers correctement
 	   if (!Array.isArray(busMarkers)) {
@@ -324,7 +348,7 @@
                const { vehicleId, latitude, longitude, speed, trip, stopId, currentStopSequence, timestamp } = bus;
 
 	       // Appliquer le filtre (si non vide)
-	       if (filterValue && trip.route_short_name.toString() !== filterValue) return;
+	       if (filterValues.length > 0 && filterValues[0] != '' && !filterValues.includes(trip.route_short_name.toString())) return;
 	       
 	       const nextStopName = getStopName(bus.stopId,stopsData);
 	       // not used anymore
@@ -387,6 +411,10 @@
            console.error("Erreur lors du chargement des données distantes:", error);
        }
    }
+
+   //Chargement des horaires theoriques
+   loadScheduleFile();
+
 
    // Rafraîchir toutes les 6 secondes
    fetchRealTimeBusData();
