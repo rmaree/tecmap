@@ -69,4 +69,10 @@ I am aware of the limitations of such a client-side approach.
 Having a database to store routes and stops and an API called from the web client would be more elegant but for the moment I wanted to keep it very simple so that anyone can deploy it easily.
 Please feel free to submit Issues or contact me.
 
+## Acknowledgments
+The map uses [http://openstreetmap.org/](http://openstreetmap.org/) data and [https://leafletjs.com/](https://leafletjs.com/) Javascript library.
+
+
+
+
 
