@@ -8,10 +8,13 @@
     <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
+    
     <!-- load local transit data: stops and trips -->
     <script src="data/stops.js"></script>  <!-- loads stopsData  -->
-    <!-- <script src="data/stop_times.js"></script> --> <!-- loads horairesData should organize data by routeId or by day or ... ?--> 
+
+    <!-- Leaflet geolocalisation control -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.locatecontrol/0.79.0/L.Control.Locate.min.css" /> 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-locatecontrol/0.79.0/L.Control.Locate.min.js"></script>
 
     <!-- Style FontAwesome pour les icônes -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -98,7 +101,7 @@
 	  <span><a href="https://busmaps.com/en/feedinfo/belgium/TEC-Transit/tec-transit/routes">?</a></span>
 	  <button onclick="clearFilter()">❌</button>
       </div>
-      <p style="margin: 0;">Nombre de bus sur la carte: <span id="busCount">0</span></p>
+      <p style="margin: 0;">Nombre de bus visibles: <span id="busCount">0</span></p>
   </div>
   
   <div id="map"></div>
@@ -112,54 +115,7 @@
    const TILE_API_KEY = ''; // the tile server API key
    let busMarkers = {};  // Marqueurs des bus
 
-   
-   // ---------------------------------------------------------------------------------------------
-   // Initialisation de la carte, coordonnees par defaut ou demande de geolocalisation
-   const defaultCoords = [50.63, 5.56];
-   const map = L.map('map').setView(defaultCoords, 16);  
-   // Vérifier si la géolocalisation est disponible
-   if (navigator.geolocation) {
-       navigator.geolocation.getCurrentPosition(
-	   (position) => {
-	       const userCoords = [position.coords.latitude, position.coords.longitude];
-	       map.setView(userCoords, 16); // Centrer sur la position de l'utilisateur
-	       
-	       // Ajouter un marqueur pour la position de l'utilisateur
-	       L.marker(userCoords, {
-		   icon: L.divIcon({
-		       className: 'custom-user-marker',
-		       html: '<i class="fas fa-map-marker-alt"></i>',
-		       iconSize: [40, 40],
-		       iconAnchor: [20, 20]
-		   })
-	       }).addTo(map)
-		.bindPopup("Vous êtes ici").openPopup();
-	   },
-	   () => {
-	       console.warn("Géolocalisation refusée ou indisponible. Utilisation des coordonnées par défaut.");
-	   }
-       );
-   } else {
-       console.warn("Géolocalisation non supportée par le navigateur.");
-   }
-   // tileLayer from thunderforest can be used using an apikey, replace XXXXXXXXX by yours
-   if (TILE_API_KEY) {
-       const tileLayer = L.tileLayer('https://tile.thunderforest.com/transport/{z}/{x}/{y}.png?apikey='+TILE_API_KEY, {
-     	   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, tiles &copy; <a href="https://www.thunderforest.com/maps/transport/">Thunderforest</a>',
-   	   maxZoom: 22
-       });
-       tileLayer.addTo(map);
-   }
-   else {
-       //default OSM tiles:
-       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-	   attribution: '&copy; OpenStreetMap contributors'
-       }).addTo(map);
-   }
 
-
-   // ---------------------------------------------------------------------------------------------
-   // Definitions de fonctions utilitaires
    // Fonction pour charger dynamiquement le fichier des horaires en fonction du jour
    function loadScheduleFile() {
        const dayOfWeek = new Date().getDay(); 
@@ -181,7 +137,46 @@
 
        document.head.appendChild(script);
    }
+   
+   //Chargement des horaires theoriques
+   loadScheduleFile();
+   
+   // ---------------------------------------------------------------------------------------------
+   // Initialisation de la carte, coordonnees par defaut ou demande de geolocalisation
+   const defaultCoords = [50.63, 5.56];
+   const map = L.map('map').setView(defaultCoords, 16);  
+   // Ajouter le bouton de localisation
+   lc = L.control.locate({
+       follow: true,          // Suit la position de l'utilisateur en temps réel
+       keepCurrentZoomLevel: true, // Ne change pas le niveau de zoom actuel
+       icon: "fa-solid fa-location-dot", //"fas fa-map-marker-alt", // Icône FontAwesome
+       strings: {
+           title: "Voir ma position"
+       }
+   }).addTo(map);
+   
+   // tileLayer from thunderforest can be used using an apikey, replace XXXXXXXXX by yours
+   if (TILE_API_KEY) {
+       const tileLayer = L.tileLayer('https://tile.thunderforest.com/transport/{z}/{x}/{y}.png?apikey='+TILE_API_KEY, {
+     	   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, tiles &copy; <a href="https://www.thunderforest.com/maps/transport/">Thunderforest</a>',
+   	     maxZoom: 22
+   });
+   tileLayer.addTo(map);
+   }
+   else {
+       //default OSM tiles:
+       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+	   attribution: '&copy; OpenStreetMap contributors'
+       }).addTo(map);
 
+   
+   }
+
+
+   // ---------------------------------------------------------------------------------------------
+   // Fonctions utilitaires
+
+   
    
 
    // Fonction pour nettoyer le filtre
@@ -322,6 +317,7 @@
    
    
 
+   
    // ---------------------------------------------------------------------------------------------
    // Fonction principale pour récupérer les donnees temps reel et afficher les marqueurs des bus sur la carte
    async function fetchRealTimeBusData() {
@@ -412,8 +408,7 @@
        }
    }
 
-   //Chargement des horaires theoriques
-   loadScheduleFile();
+   
 
 
    // Rafraîchir toutes les 6 secondes
