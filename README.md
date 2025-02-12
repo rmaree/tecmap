@@ -1,7 +1,7 @@
 ## Introduction to tecmap
 "Transports en Commun" map is a lightweight map to locate bus in real-time using open data. On the map below, buses coordinates are refreshed every 10 seconds and are colored according to delay (by comparing real-time data to static theoretical timetables which can be displayed by clicking on one bus: red > 5 minutes, 0 < orange < 5 minutes, green on time). A simple filter (by bus line numbers) allows to only display the buses of interest. You can get timelines and other details when you click on a bus marker on the map.
 
-![tecview map](tecview-liege.jpg?raw=true "Tecview map")
+![tecmap](tecmap-liege.jpg?raw=true "Tecmap in Liège, Belgium")
 
 It has been developed using HTML+CSS+Javascript only to be run through a single HTML page without any web framework. It relies on transit data locally stored, and real-time data coming from a remote API.
 This has been tested with GTFS static transit data for Wallonia in Belgium (TEC, downloaded from [https://beltac.tec-wl.be](https://beltac.tec-wl.be/))
