@@ -144,40 +144,63 @@
    // ---------------------------------------------------------------------------------------------
    // Initialisation de la carte, coordonnees par defaut ou demande de geolocalisation
    const defaultCoords = [50.63, 5.56];
-   const map = L.map('map').setView(defaultCoords, 16);  
+   
+   // tileLayer from thunderforest can be used using an apikey
+   if (TILE_API_KEY) {
+       var transportTileLayer = L.tileLayer('https://tile.thunderforest.com/transport/{z}/{x}/{y}.png?apikey='+TILE_API_KEY, {
+     	   attribution: '&copy; <a href="https://www.thunderforest.com/maps/transport/">Thunderforest</a>',
+   	   maxZoom: 22
+       });
+   }
+   var osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+       maxZoom: 19,
+       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+   });
+
+   var osmHOTLayer = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+       maxZoom: 19,
+       attribution: '&copy; HOT hosted by OSM France'});
+
+
+   var cyclOSMLayer = L.tileLayer('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png',
+				  { maxZoom: 19,
+				    attribution: '&copy; <a href="https://github.com/cyclosm/cyclosm-cartocss-style/releases">CyclOSM</a>'});
+
+   var opnvLayer = L.tileLayer('https://tile.memomaps.de/tilegen/{z}/{x}/{y}.png',
+			       { maxZoom: 19,
+				 attribution: '&copy; Öpnvkarte'});
+   
+   var map = L.map('map', {
+       center: defaultCoords,//[39.73, -104.99],
+       zoom: 16,
+       layers: [osmLayer,osmHOTLayer,cyclOSMLayer,opnvLayer,transportTileLayer]
+   });
+
+   var baseMaps = {
+       "OpenStreetMap": osmLayer,
+       "OpenStreetMap.HOT": osmHOTLayer,
+       "CyclOSM": cyclOSMLayer,
+       "Öpnvkarte Transport map": opnvLayer,
+       "TransportMap": transportTileLayer,
+   };
+   var layerControl = L.control.layers(baseMaps).addTo(map);
+   
+   
    // Ajouter le bouton de localisation
    lc = L.control.locate({
        follow: true,          // Suit la position de l'utilisateur en temps réel
-       keepCurrentZoomLevel: true, // Ne change pas le niveau de zoom actuel
-       icon: "fa-solid fa-location-dot", //"fas fa-map-marker-alt", // Icône FontAwesome
-       strings: {
-           title: "Voir ma position"
-       }
+				   keepCurrentZoomLevel: true, // Ne change pas le niveau de zoom actuel
+				 icon: "fa-solid fa-location-dot", //"fas fa-map-marker-alt", // Icône FontAwesome
+				 strings: {
+				     title: "Voir ma position"
+				 },
    }).addTo(map);
+
    
-   // tileLayer from thunderforest can be used using an apikey, replace XXXXXXXXX by yours
-   if (TILE_API_KEY) {
-       const tileLayer = L.tileLayer('https://tile.thunderforest.com/transport/{z}/{x}/{y}.png?apikey='+TILE_API_KEY, {
-     	   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, tiles &copy; <a href="https://www.thunderforest.com/maps/transport/">Thunderforest</a>',
-   	   maxZoom: 22
-       });
-       tileLayer.addTo(map);
-   }
-   else {
-       //default OSM tiles:
-       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-	   attribution: '&copy; OpenStreetMap contributors'
-       }).addTo(map);
-
-       
-   }
-
 
    // ---------------------------------------------------------------------------------------------
    // Fonctions utilitaires
 
-   
-   
 
    // Fonction pour nettoyer le filtre
    function clearFilter() {
@@ -406,7 +429,7 @@
 	   document.getElementById('busCount').textContent = visibleBuses.length;
        } catch (error) {
            console.error("Erreur lors du chargement des données distantes:", error);
-       }
+   }
    }
 
    
