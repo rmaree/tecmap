@@ -159,9 +159,9 @@
    if (TILE_API_KEY) {
        const tileLayer = L.tileLayer('https://tile.thunderforest.com/transport/{z}/{x}/{y}.png?apikey='+TILE_API_KEY, {
      	   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, tiles &copy; <a href="https://www.thunderforest.com/maps/transport/">Thunderforest</a>',
-   	     maxZoom: 22
-   });
-   tileLayer.addTo(map);
+   	   maxZoom: 22
+       });
+       tileLayer.addTo(map);
    }
    else {
        //default OSM tiles:
@@ -169,7 +169,7 @@
 	   attribution: '&copy; OpenStreetMap contributors'
        }).addTo(map);
 
-   
+       
    }
 
 
@@ -363,7 +363,8 @@
 	       //🏁 Démarrage: ${bus.trip.startTime} (il y a ${timeSinceStart} minutes)<br>
                const popupContent = `
          <b>Ligne ${trip.route_short_name}</b> ${trip.route_long_name} <br>
-         Direction: ${startPoint} <i class="fas fa-arrow-right"></i> ${endPoint} <br>
+         De: ${startPoint} <br>
+         Vers: <i class="fas fa-arrow-right"></i> ${endPoint} <br>
          <!-- 🚌 Bus ID: ${vehicleId} <br> //-->
          <i class="fas fa-map-marker-alt"></i> Position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} <br>
          <i class="fas fa-tachometer-alt"></i> Vitesse: ${speed ? speed + " km/h" : "N/A"} <br>
