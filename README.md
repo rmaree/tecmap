@@ -28,8 +28,8 @@ less energy than running a routing algorithm on GAFAM servers. ;)
    
 
 ## Edit tecmap.html
-1. Edit the `loadScheduleFile()` function in your **tecmap.html** if local files are not located in data/ or named in another way e.g. in the case of multiple files with splitted information per day.
-2. Edit **RT_API_URL** so that it refers to the API endpoint that returns real-time traffic data in JSON format (gtfsRealtimeVersion": "1.0"), expected to be formatted as follows:
+1. Edit the `loadScheduleFile()` function in **tecmap.html** if local files are not located in data/ or named in another way e.g. in the case of multiple files with splitted information per day.
+3. Edit **RT_API_URL** in **config.js** so that it refers to the API endpoint that returns real-time traffic data in JSON format (gtfsRealtimeVersion": "1.0"), expected to be formatted as follows:
 
 ```
 {
@@ -59,7 +59,7 @@ less energy than running a routing algorithm on GAFAM servers. ;)
 ```
 
 
-3. Edit **TILE_API_KEY** if you want to use the Transport raster tiles from Thunderforest.com [https://www.thunderforest.com/maps/transport/](https://www.thunderforest.com/maps/transport/), otherwise default OSM [https://openstreetmap.org/](https://openstreetmap.org/) raster tiles will be used.
+3. Edit **TILE_API_KEY** in **config.js** if you want to use the Transport raster tiles from Thunderforest.com [https://www.thunderforest.com/maps/transport/](https://www.thunderforest.com/maps/transport/), otherwise default OSM [https://openstreetmap.org/](https://openstreetmap.org/) raster tiles will be used.
 
 ## Run locally
 Open the tecmap.html page in your desktop computer's browser. Or copy the HTML page and data/ to a web server for remote access.
