@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TECmap : Carte des transports en commun (TEC) en temps réel</title>
 
+    <script src="config.js"></script>  <!-- load configuration variables -->
+    
     <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -19,6 +21,7 @@
     <!-- Style FontAwesome pour les icônes -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
+    
     
     <style>
      #map { height: 98vh; }
@@ -107,14 +110,7 @@
   <div id="map"></div>
 
   <script>
-   //Chargement données arrêts (local)
-   // the real-time API end-point
-   const RT_API_URL = ''; // the real-time API end-point
-   const RT_REFRESH_RATE = 10000; // refresh real-time traffic data every 10 seconds
-   // the tile server API key
-   const TILE_API_KEY = ''; // the tile server API key
    let busMarkers = {};  // Marqueurs des bus
-
 
    // Fonction pour charger dynamiquement le fichier des horaires en fonction du jour
    function loadScheduleFile() {
@@ -180,8 +176,8 @@
        "OpenStreetMap": osmLayer,
        "OpenStreetMap.HOT": osmHOTLayer,
        "CyclOSM": cyclOSMLayer,
-       "Öpnvkarte Transport map": opnvLayer,
-       "TransportMap": transportTileLayer,
+       "Transport map (Öpnvkarte)": opnvLayer,
+       "TransportMap (Thunderforest)": transportTileLayer,
    };
    var layerControl = L.control.layers(baseMaps).addTo(map);
    
@@ -189,11 +185,11 @@
    // Ajouter le bouton de localisation
    lc = L.control.locate({
        follow: true,          // Suit la position de l'utilisateur en temps réel
-				   keepCurrentZoomLevel: true, // Ne change pas le niveau de zoom actuel
-				 icon: "fa-solid fa-location-dot", //"fas fa-map-marker-alt", // Icône FontAwesome
-				 strings: {
-				     title: "Voir ma position"
-				 },
+       keepCurrentZoomLevel: true, // Ne change pas le niveau de zoom actuel
+       icon: "fa-solid fa-location-dot", //"fas fa-map-marker-alt", // Icône FontAwesome
+       strings: {
+	   title: "Voir ma position"
+       },
    }).addTo(map);
 
    
@@ -429,7 +425,7 @@
 	   document.getElementById('busCount').textContent = visibleBuses.length;
        } catch (error) {
            console.error("Erreur lors du chargement des données distantes:", error);
-   }
+       }
    }
 
    
