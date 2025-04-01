@@ -22,15 +22,40 @@ import sys
 
 
 stop_times_csv_input_filename = "data/stop_times.txt"  # Fichier GTFS csv incluant tous les stop_times
-stop_times_js_output_filename = "data/stop_times.js"    # Fichier js de sortie, à renommer si e.g. par jour stop_times-DIM.js
+stop_times_js_output_filename = "data/stop_times-SEM.js"    # Fichier js de sortie, à renommer si e.g. par jour stop_times-DIM.js 
+#stop_times_js_output_filename = "data/stop_times-SEM_VAC.js"    # Fichier js de sortie, à renommer si e.g. par jour stop_times-DIM.js
 #Filters to reduce size of stop_times data, depending on regions and/or weekdays
-filter_strings = ["_LG_N3-Sem-", "-SC-N3-Sem-", "-choi-Sem-","BW_A_P2-Sem-"] #"H25_P2-Sem"]
+filter_strings = ["_LG_N3-Sem-", "-SC-N3-Sem-", "-choi-Sem-","BW_A_P2-Sem-"] #regular weeks
+#filter_strings = ["-Sem-Vac-","-Sem-Cong"] #"_PA_2025-25_SP_VA-Sem-Vac","choi-Sem-Cong"] #holiday weeks
 #filter_strings = ["-Samedi-"] #"H25_P2-Sem"]
 #filter_strings = ["-Dimanche-"] #"H25_P2-Sem"]
 #filter_strings = ["-Mercredi-"] #"H25_P2-Sem"]
 stops_csv_input_filename = "data/stops.txt" # Fichier GTFS csv incluant toutes les routes/trips
 stops_js_output_filename = "data/stops.js"
 
+routes_csv_input_filename = "data/routes.txt" #fichier GTFS statique CSV incluant toutes les routes
+routes_js_output_filename = "data/routes.js" #fichier JS de sortie indexé par route_id
+
+# ----------------------------------------------------------------------
+# Fonction pour convertir routes.txt du format csv à un dictionnaire JS
+def convert_routes_csv_to_js2(input_csv, output_js):
+    routes = {}
+    with open(input_csv, mode="r", encoding="utf-8") as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            rid = row["route_id"]
+            routes[rid] = {
+                "rsn": row["route_short_name"],
+                "rln": row["route_long_name"]
+            }
+
+    js_content = f"const routeData={json.dumps(routes, separators=(',', ':'))};"
+    
+    with open(output_js, mode="w", encoding="utf-8") as jsfile:
+        jsfile.write(js_content)
+    print(f"JavaScript file '{output_js}' generated successfully.")
+
+        
 
 # ----------------------------------------------------------------------
 # Fonction pour convertir stop_times du format csv à un dictionnaire JS
@@ -89,6 +114,7 @@ def convert_stops_csv_to_js(csv_filename, js_filename):
     
 
 # Execute conversions
+convert_routes_csv_to_js2(routes_csv_input_filename, routes_js_output_filename)
 convert_stop_times_csv_to_js(stop_times_csv_input_filename, stop_times_js_output_filename, filter_strings)
 convert_stops_csv_to_js(stops_csv_input_filename, stops_js_output_filename)
 
