@@ -9,18 +9,29 @@
     
     <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script> - 
+    <!--<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"> -->
+    <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>  -->
     
     <!-- load local transit data: stops and trips -->
     <script src="data/stops.js"></script>  <!-- loads stopsData  -->
 
-    <!-- Leaflet geolocalisation control -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.locatecontrol/0.79.0/L.Control.Locate.min.css" /> 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-locatecontrol/0.79.0/L.Control.Locate.min.js"></script>
+    <!-- load local routes -->
+    <script src="data/routes.js"></script>  <!-- loads routeData  -->
+    
 
+    <!-- Leaflet geolocalisation control -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.js"></script>
+    
     <!-- Style FontAwesome pour les icônes -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
+    <!-- load protobuf library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/protobufjs/7.2.0/protobuf.min.js"></script>
+    
     
     
     <style>
@@ -128,14 +139,15 @@
        let suffix = holidayWeeks.includes(currentWeek) ? "_VAC" : "";
        let scriptFile = "data/stop_times-SEM"+suffix+".js"; // Par défaut, horaires pour les jours de la semaine
 
-       if (dayOfWeek === 0) { // Dimanche
-           scriptFile = "data/stop_times-DIM"+suffix+".js";
+       if (dayOfWeek === 0) { // Dimanche holidays / not holidays
+           scriptFile = "data/stop_times-DIM.js";
        } else if (dayOfWeek === 6) { // Samedi
-           scriptFile = "data/stop_times-SAM"+suffix+".js";
-       } else if (dayOfWeek === 3) { // Mercredi
-           scriptFile = "data/stop_times-MER"+suffix+".js";
+           scriptFile = "data/stop_times-SAM.js";
+       } else if (dayOfWeek === 3 && !holidayWeeks.includes(currentWeek)) { // Mercredi, wednesday in SEM during holidays
+           scriptFile = "data/stop_times-MER.js"; 
        }
 
+       
        // Créer et insérer dynamiquement un script
        const script = document.createElement("script");
        script.src = scriptFile;
@@ -152,9 +164,9 @@
    // Initialisation de la carte, coordonnees par defaut ou demande de geolocalisation
    const defaultCoords = [50.63, 5.56];
    var osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-					   maxZoom: 19,
-					   attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-       });
+       maxZoom: 19,
+       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+   });
 
    var osmHOTLayer = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
        maxZoom: 19,
@@ -357,15 +369,24 @@
    
    
 
+   let gtfsData = null;
+
+   async function loadGTFSData() {
+       gtfsData = await loadGTFSProtobuf();
+       //console.log("Données chargées :", gtfsData);
+   }
    
    // ---------------------------------------------------------------------------------------------
    // Fonction principale pour récupérer les donnees temps reel et afficher les marqueurs des bus sur la carte
    async function fetchRealTimeBusData() {
        try {
 	   // Uses external API to get real-time json data
-	   const response = await fetch(RT_API_URL); 
-           const data = await response.json();
-
+	   //const response = await fetch(RT_API_URL); 
+           //const data = await response.json();
+	   loadGTFSData();
+	   const formattedData = transformGTFSData(gtfsData);
+	   //console.log(JSON.stringify(formattedData, null, 2)); // Affichage formaté en JSON
+	   
 	   // Récupère la valeur du filtre de ligne entré par l'utilisateur.ice
 	   let filterValues = document.getElementById('busFilter').value.split(" ").map(num => num.trim()); // Convertit en tableau
 
@@ -380,8 +401,8 @@
 	       busMarkers = [];
 	   }
 	   
-           data.markers.forEach(bus => {
-               const { vehicleId, latitude, longitude, speed, trip, stopId, currentStopSequence, timestamp } = bus;
+	   formattedData.vehicles.forEach(bus => {
+	       const { vehicleId, latitude, longitude, speed, trip, stopId, currentStopSequence, timestamp } = bus;
 
 	       // Appliquer le filtre (si non vide)
 	       if (filterValues.length > 0 && filterValues[0] != '' && !filterValues.includes(trip.route_short_name.toString())) return;
@@ -449,12 +470,59 @@
        }
    }
 
+
+
+   async function loadGTFSProtobuf() {
+    try {
+        const response = await fetch(RT_API_URL);
+        const buffer = await response.arrayBuffer();
+        const root = await protobuf.load("data/gtfs-realtime.proto");  // Charger le .proto
+        const FeedMessage = root.lookupType("transit_realtime.FeedMessage");
+        const message = FeedMessage.decode(new Uint8Array(buffer));
+        //console.log("GTFS Data in load:", FeedMessage.toObject(message));
+        return FeedMessage.toObject(message);
+    } catch (error) {
+        console.error("Erreur lors du chargement du GTFS Protobuf :", error);
+    }
+   }
+
    
+   function getRouteLongName(routeId) {
+       return routeData[routeId].rln;
+   }
+   function getRouteShortName(routeId) {
+       return routeData[routeId].rsn;
+   }
+
+   function transformGTFSData(gtfsData) {
+       return {
+        vehicles: gtfsData.entity.map(entity => ({
+            vehicleId: entity.vehicle?.id || entity.id, // Certains objets semblent avoir vehicle.id, d'autres non
+		latitude: entity.vehicle.position?.latitude || null,
+		longitude: entity.vehicle.position?.longitude || null,
+		speed: entity.vehicle.position?.speed || null,
+		currentStopSequence: entity.vehicle.currentStopSequence || null,
+		timestamp: entity.vehicle.timestamp || null,
+		stopId: entity.vehicle.stopId || null,
+		trip: entity.vehicle.trip ? {
+                    tripId: entity.vehicle.trip.tripId || null,
+                    startTime: entity.vehicle.trip.startTime || null,
+                    startDate: entity.vehicle.trip.startDate || null,
+                    routeId: entity.vehicle.trip.routeId || null,
+		    route_short_name: getRouteShortName(entity.vehicle.trip.routeId) || null,
+		    route_long_name: getRouteLongName(entity.vehicle.trip.routeId) || null,
+		} : null,
+	    agency: entity.vehicle.trip?.routeId?.split("-")[0] || null // Déduire l'agence depuis l'ID de la route
+        }))
+       };
+   }
 
 
-   // Rafraîchir toutes les 6 secondes
+   // Rafraîchir toutes les RT_REFRESH_RATE secondes
    fetchRealTimeBusData();
    setInterval(fetchRealTimeBusData, RT_REFRESH_RATE);
+
+   
 
   </script>
 </body>
