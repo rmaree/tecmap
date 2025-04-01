@@ -3,9 +3,9 @@
 
 ![tecmap](tecmap-liege.jpg?raw=true "Tecmap in Liège, Belgium")
 
-It has been developed using HTML+CSS+Javascript only to be run through a single HTML page without any web framework. It relies on transit data locally stored, and real-time data coming from a remote API.
+It has been developed using HTML+CSS+Javascript only to be run through a single HTML page without any web framework. It relies on transit data locally stored, and real-time data coming from a remote API using ProtoBuf format.
 This has been tested with GTFS static transit data for Wallonia in Belgium (TEC, downloaded from [https://beltac.tec-wl.be](https://beltac.tec-wl.be/))
-including routes and stops, and real-time traffic information assumed to be accessible through an API that returns it in JSON format.
+including routes and stops, and real-time traffic information assumed to be accessible through an API that returns it in ProtoBuf format.
 
 The typical use cases are individuals willing to know if their buses are on time to plan their trips, e.g. someone at home who doesn't 
 want to wait 10 minutes outside in the cold, or someone who has the possibility of taking several different buses and wants to know which one will arrive first,
@@ -17,7 +17,7 @@ less energy than running a routing algorithm on GAFAM servers. ;)
 ## Data preparation
 1. Create `data/` local directory
    
-3. Download into ´data/` local directory GTFS routes and stops data (latest version from [https://beltac.tec-wl.be](https://beltac.tec-wl.be/Current%20GTFS/) or [https://busmaps.com/en/belgium/TEC-Transit/tec-transit](https://busmaps.com/en/belgium/TEC-Transit/tec-transit) )
+3. Download into ´data/` local directory GTFS static routes and stops data (latest version from [https://beltac.tec-wl.be](https://beltac.tec-wl.be/Current%20GTFS/) or [https://busmaps.com/en/belgium/TEC-Transit/tec-transit](https://busmaps.com/en/belgium/TEC-Transit/tec-transit) )
    
 5. Convert data using `convert_data.py` Python3 script:
 
@@ -25,37 +25,54 @@ less energy than running a routing algorithm on GAFAM servers. ;)
    
     2.2 `data/stop_times.txt` will be converted to `data/stop_times.js`(contains routes with sequences of bus stops and arrival times)
    I recommend to split original data into multiple .js files using the filter_strings, and load in tecmap.html the appropriate js file on-the-fly according e.g. to the day of the week.
+
+    2.3 `data/routes.txt` will be converted to `data/routes.js`  (contains route short and long names)
    
 
 ## Edit tecmap.html
 1. Edit the `loadScheduleFile()` function in **tecmap.html** if local files are not located in data/ or named in another way e.g. in the case of multiple files with splitted information per day.
-3. Edit **RT_API_URL** in **config.js** so that it refers to the API endpoint that returns real-time traffic data in JSON format (gtfsRealtimeVersion": "1.0"), expected to be formatted as follows:
+3. Edit **RT_API_URL** in **config.js** so that it refers to the API endpoint that returns real-time traffic data in ProtoBuf format using the Protocol definition file for GTFS Realtime from https://github.com/google/transit/blob/master/gtfs-realtime/proto/gtfs-realtime.proto. In our code function transformGTFSData, we convert the Protobuf data into a JSON structure for easier manipulation, formatted as follows:
 
 ```
 {
-    "markers": [
-        {
-            "vehicleId": "XXX",
-            "latitude": 50.632415771484375,
-            "longitude": 5.555666923522949,
-            "bearing": 141,
-            "speed": 6,
-            "currentStopSequence": 8,
-            "timestamp": 1738589199,
-            "stopId": "Llglamb1",
-            "trip": {
-                "tripId": "46212634-L_PA_2025-25_LG_N3-Sem-N-3-02",
-                "startTime": "14:21:00",
-                "startDate": "20250203",
-                "routeId": "L0021-22065",
-                "route_short_name": "21",
-                "route_long_name": "Darchis - Laveu - St-Nicolas"
-            },
-            "agency": "L"
-        },
-        ...
-        ]
-}
+  "vehicles": [
+    {
+      "vehicleId": "3427",
+      "latitude": 50.46605682373047,
+      "longitude": 4.186469554901123,
+      "speed": null,
+      "currentStopSequence": 31,
+      "timestamp": 1743537125,
+      "stopId": "H2ll179f",
+      "trip": {
+        "tripId": "47395794-H_2025-H25_P2-Sem-N-3-03",
+        "startTime": "21:12:00",
+        "startDate": "20250401",
+        "routeId": "H2030-22858",
+        "route_short_name": "30",
+        "route_long_name": "Strépy-Bracquegnies - Anderlues"
+      },
+      "agency": "H2030"
+    },
+    {
+      "vehicleId": "3231",
+      "latitude": 50.45465087890625,
+      "longitude": 3.9430530071258545,
+      "speed": 22,
+      "currentStopSequence": 40,
+      "timestamp": 1743537049,
+      "stopId": "H1ms401a",
+      "trip": {
+        "tripId": "47397951-H_2025-H25_P2-Sem-N-3-03",
+        "startTime": "21:17:00",
+        "startDate": "20250401",
+        "routeId": "H1022-22900",
+        "route_short_name": "22",
+        "route_long_name": "Mons - Binche"
+      },
+      "agency": "H1022"
+    },
+   ...
 ```
 
 
@@ -70,7 +87,7 @@ Having a database to store routes and stops and an API called from the web clien
 Please feel free to submit Issues or contact me.
 
 ## Acknowledgments
-The map uses [http://openstreetmap.org/](http://openstreetmap.org/) data and [https://leafletjs.com/](https://leafletjs.com/) Javascript library.
+The map uses the open access [http://openstreetmap.org/](http://openstreetmap.org/) data and the open-source [https://leafletjs.com/](https://leafletjs.com/) Javascript library.
 
 
 
