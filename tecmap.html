@@ -123,10 +123,21 @@
   <script>
    let busMarkers = {};  // Marqueurs des bus
 
-   // Fonction pour charger dynamiquement le fichier des horaires en fonction du jour
+   // Fonction pour calculer le numéro de la semaine actuelle (ISO 8601)
+   function getISOWeekNumber(date = new Date()) {
+       const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+       d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7)); // première semaine de l'année est la semaine où tombe le premier jeudi
+       const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+       return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+   }
+   
+   // Fonction pour charger dynamiquement le fichier des horaires en fonction du jour et de la semaine (congés scolaires ou pas)
    function loadScheduleFile() {
-       const dayOfWeek = new Date().getDay(); 
-       let scriptFile = "data/stop_times-SEM.js"; // Par défaut, horaires pour les jours de la semaine
+       const holidayWeeks = [1, 9, 10, 18, 19, 27, 28, 29, 30, 31, 32, 33, 34, 43, 44, 52]; //Belgium holiday weeks in 2025
+       const dayOfWeek = new Date().getDay();
+       const currentWeek = getISOWeekNumber();
+       let suffix = holidayWeeks.includes(currentWeek) ? "_VAC" : "";
+       let scriptFile = "data/stop_times-SEM"+suffix+".js"; // Par défaut, horaires pour les jours de la semaine
 
        if (dayOfWeek === 0) { // Dimanche holidays / not holidays
            scriptFile = "data/stop_times-DIM.js";
