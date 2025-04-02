@@ -26,6 +26,7 @@ stop_times_js_output_filename = "data/stop_times-SEM.js"    # Fichier js de sort
 #stop_times_js_output_filename = "data/stop_times-SEM_VAC.js"    # Fichier js de sortie, à renommer si e.g. par jour stop_times-DIM.js
 #Filters to reduce size of stop_times data, depending on regions and/or weekdays
 filter_strings = ["_LG_N3-Sem-", "-SC-N3-Sem-", "-choi-Sem-","BW_A_P2-Sem-"] #regular weeks
+#filter_strings = ["_LG_ME-Mercredi-","SC-R3-Mercredi-"] #wednesday
 #filter_strings = ["-Sem-Vac-","-Sem-Cong"] #"_PA_2025-25_SP_VA-Sem-Vac","choi-Sem-Cong"] #holiday weeks
 #filter_strings = ["-Samedi-"] #"H25_P2-Sem"]
 #filter_strings = ["-Dimanche-"] #"H25_P2-Sem"]

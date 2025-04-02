@@ -111,7 +111,7 @@
   <!-- Filter area -->
   <div id="filter-container" style="position: absolute; top: 10px; left: 50px; background: white; padding: 5px; z-index: 1000;">
     <div style="display: flex; align-items: center; gap: 5px;">
-	  <input type="text" id="busFilter" placeholder="Filtrer par ligne de bus" oninput="fetchRealTimeBusData()">
+	  <input type="text" id="busFilter" placeholder="Filtrer par ligne de bus" oninput="fetchRealTimeBusData(0)">  <!-- we filter without gtfs data update -->
 	  <span><a href="https://busmaps.com/en/feedinfo/belgium/TEC-Transit/tec-transit/routes">?</a></span>
 	  <button onclick="clearFilter()">❌</button>
       </div>
@@ -139,6 +139,8 @@
        let suffix = holidayWeeks.includes(currentWeek) ? "_VAC" : "";
        let scriptFile = "data/stop_times-SEM"+suffix+".js"; // Par défaut, horaires pour les jours de la semaine
 
+       console.log(scriptFile);
+       
        if (dayOfWeek === 0) { // Dimanche holidays / not holidays
            scriptFile = "data/stop_times-DIM.js";
        } else if (dayOfWeek === 6) { // Samedi
@@ -147,7 +149,7 @@
            scriptFile = "data/stop_times-MER.js"; 
        }
 
-       
+       console.log(scriptFile);
        // Créer et insérer dynamiquement un script
        const script = document.createElement("script");
        script.src = scriptFile;
@@ -369,23 +371,27 @@
    
    
 
-   let gtfsData = null;
-
-   async function loadGTFSData() {
-       gtfsData = await loadGTFSProtobuf();
-       //console.log("Données chargées :", gtfsData);
+   let gtfsVehicleData = null;
+   let formattedVehicleData = null;
+   
+   async function loadGTFSVehicleData() {
+       //gtfsData = await loadGTFSProtobuf();
+       gtfsVehicleData = await loadGTFSProtobuf();
+       //console.log("Données chargées :", gtfsVehicleData);
    }
    
    // ---------------------------------------------------------------------------------------------
    // Fonction principale pour récupérer les donnees temps reel et afficher les marqueurs des bus sur la carte
-   async function fetchRealTimeBusData() {
+   async function fetchRealTimeBusData(update=1) { // by default this function will update gtfs remote data
        try {
 	   // Uses external API to get real-time json data
 	   //const response = await fetch(RT_API_URL); 
            //const data = await response.json();
-	   await loadGTFSData();
-	   const formattedData = transformGTFSData(gtfsData);
-	   //console.log(JSON.stringify(formattedData, null, 2)); // Affichage formaté en JSON
+	   if (update) {
+	       await loadGTFSVehicleData();
+	       formattedVehicleData = transformVehicleGTFSData(gtfsVehicleData);
+	       //console.log(JSON.stringify(formattedData, null, 2)); // Affichage formaté en JSON
+	   }
 	   
 	   // Récupère la valeur du filtre de ligne entré par l'utilisateur.ice
 	   let filterValues = document.getElementById('busFilter').value.split(" ").map(num => num.trim()); // Convertit en tableau
@@ -401,11 +407,12 @@
 	       busMarkers = [];
 	   }
 	   
-	   formattedData.vehicles.forEach(bus => {
+	   formattedVehicleData.vehicles.forEach(bus => {
 	       const { vehicleId, latitude, longitude, speed, trip, stopId, currentStopSequence, timestamp } = bus;
 
 	       // Appliquer le filtre (si non vide)
 	       if (filterValues.length > 0 && filterValues[0] != '' && !filterValues.includes(trip.route_short_name.toString())) return;
+	       //if (!trip.route_short_name || (filterValues.length > 0 && filterValues[0] != '' && !filterValues.includes(trip.route_short_name.toString()))) return;
 	       
 	       const nextStopName = getStopName(bus.stopId,stopsData);
 	       // not used anymore
@@ -488,13 +495,15 @@
 
    
    function getRouteLongName(routeId) {
-       return routeData[routeId].rln;
+       route = routeData[routeId];
+       return route ? route.rln : " "
    }
    function getRouteShortName(routeId) {
-       return routeData[routeId].rsn;
+       route = routeData[routeId];
+       return route ? route.rsn : " ";
    }
 
-   function transformGTFSData(gtfsData) {
+   function transformVehicleGTFSData(gtfsData) {
        return {
         vehicles: gtfsData.entity.map(entity => ({
             vehicleId: entity.vehicle?.id || entity.id, // Certains objets semblent avoir vehicle.id, d'autres non
