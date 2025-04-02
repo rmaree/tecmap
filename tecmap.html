@@ -379,6 +379,27 @@
        gtfsVehicleData = await loadGTFSProtobuf();
        //console.log("Données chargées :", gtfsVehicleData);
    }
+
+
+   async function waitForHorairesData(timeout = 10000, interval = 100) {
+    return new Promise((resolve, reject) => {
+        const startTime = Date.now();
+
+        const check = () => {
+            if (typeof horairesData !== "undefined") {
+                resolve(horairesData);
+            } else if (Date.now() - startTime > timeout) {
+                reject(new Error("Timeout: horairesData n'a pas été chargé à temps."));
+            } else {
+                setTimeout(check, interval);
+            }
+        };
+
+        check();
+    });
+   }
+
+   
    
    // ---------------------------------------------------------------------------------------------
    // Fonction principale pour récupérer les donnees temps reel et afficher les marqueurs des bus sur la carte
@@ -387,7 +408,7 @@
 	   // Uses external API to get real-time json data
 	   //const response = await fetch(RT_API_URL); 
            //const data = await response.json();
-	   if (update) {
+	   if (update) { //when using filter, we don't reload gtfs but apply filter on current data
 	       await loadGTFSVehicleData();
 	       formattedVehicleData = transformVehicleGTFSData(gtfsVehicleData);
 	       //console.log(JSON.stringify(formattedData, null, 2)); // Affichage formaté en JSON
@@ -406,6 +427,13 @@
 	       busMarkers.forEach(marker => map.removeLayer(marker));
 	       busMarkers = [];
 	   }
+
+	   if (first) { // we wait for horairesData to be loaded on first execution
+	       await waitForHorairesData()
+	       .then(data => console.log("horairesData chargé"))
+	       .catch(error => console.error(error.message));
+	   }
+	   first=0;
 	   
 	   formattedVehicleData.vehicles.forEach(bus => {
 	       const { vehicleId, latitude, longitude, speed, trip, stopId, currentStopSequence, timestamp } = bus;
@@ -528,6 +556,7 @@
 
 
    // Rafraîchir toutes les RT_REFRESH_RATE secondes
+   let first = 1;
    fetchRealTimeBusData();
    setInterval(fetchRealTimeBusData, RT_REFRESH_RATE);
 
