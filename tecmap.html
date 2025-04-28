@@ -185,7 +185,7 @@
    // tileLayer from thunderforest can be used using an apikey
    if (TILE_API_KEY) {
        var transportTileLayer = L.tileLayer('https://tile.thunderforest.com/transport/{z}/{x}/{y}.png?apikey='+TILE_API_KEY, {
-     	   attribution: '&copy; <a href="https://www.thunderforest.com/maps/transport/">Thunderforest</a>',
+     	   attribution: 'OpenStreetMap, &copy; <a href="https://www.thunderforest.com/maps/transport/">Thunderforest</a>',
    	   maxZoom: 22
        });
        var cycleMapTileLayer = L.tileLayer('https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey='+TILE_API_KEY, {
@@ -342,7 +342,7 @@
        // Construire l'affichage des horaires
        let scheduleHtml = "<ul>";
        //scheduleHtml += `Delta estimé: ${estimate `;
-       schedule.forEach(entry => {
+       schedule.slice(currentStopSequence-1,schedule.length).forEach(entry => {  // we slice the schedule to only keep next stops in the popup
 	   const stopName = getStopName(entry.s,stopsData);
 	   const isNextStop = entry.s === nextStopId;
 	   // entry.a = arrival_time
@@ -410,7 +410,7 @@
 	   if (update) { //when using filter, we don't reload gtfs but apply filter on current data
 	       await loadGTFSVehicleData();
 	       formattedVehicleData = transformVehicleGTFSData(gtfsVehicleData);
-	       //console.log(JSON.stringify(formattedData, null, 2)); // Affichage formaté en JSON
+	       console.log(JSON.stringify(formattedVehicleData, null, 2)); // Affichage formaté en JSON
 	   }
 	   
 	   // Récupère la valeur du filtre de ligne entré par l'utilisateur.ice
@@ -468,18 +468,34 @@
                         <div id="schedule-${bus.trip.tripId}"></div>
                `;
 
+	       busIcon = null;
 	       // Définition de l'icône avec couleur dynamique en fonction de la vitesse
-	       const busIcon = L.divIcon({
-		   html: `
-                       <div class="bus-marker" style="border: 3px solid ${busColor};">
-                           <i class="fas fa-bus" style="color: ${busColor};"></i>
-                           <span class="bus-number">${bus.trip.route_short_name}</span>
-                       </div>
-                   `,
-		   className: 'custom-bus-icon',
-		   iconSize: [40, 40],
-		   iconAnchor: [20, 20]
-	       });
+	       if (bus.trip.route_short_name === "T1") {
+		   busIcon = L.divIcon({
+		       html: `
+			   <div class="bus-marker" style="border: 3px solid ${busColor};">
+                               <i class="fas fa-train-tram" style="color: ${busColor};"></i>
+                               <span class="bus-number">${bus.trip.route_short_name}</span>
+			   </div>
+                       `,
+		       className: 'custom-bus-icon',
+		       iconSize: [40, 40],
+		       iconAnchor: [20, 20]
+		   });
+	       }
+	       else {
+		   busIcon = L.divIcon({
+		       html: `
+			   <div class="bus-marker" style="border: 3px solid ${busColor};">
+                               <i class="fas fa-bus" style="color: ${busColor};"></i>
+                               <span class="bus-number">${bus.trip.route_short_name}</span>
+			   </div>
+                       `,
+		       className: 'custom-bus-icon',
+		       iconSize: [40, 40],
+		       iconAnchor: [20, 20]
+		   });
+	       }
 
 
                if (busMarkers[vehicleId]) {
