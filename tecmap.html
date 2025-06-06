@@ -145,7 +145,7 @@
        } else if (dayOfWeek === 6) { // Samedi
            scriptFile = "data/stop_times-SAM.js";
        } else if (dayOfWeek === 3 && !holidayWeeks.includes(currentWeek)) { // Mercredi, wednesday in SEM during holidays
-           scriptFile = "data/stop_times-MER.js"; 
+           scriptFile = "data/stop_times-MER.js";
        }
 
        console.log(scriptFile);
@@ -320,7 +320,8 @@
    }
 
    // Genere l'HTML de l'horaire de ce trip avec affichage du retard
-   function showSchedule(tripId, startTime, currentStopSequence, nextStopId, timestamp, delay, element) {
+   function showSchedule(tripId, startTime, currentStopSequence, nextStopId, timestamp, delay, filterStop, element) {
+       //console.log("Arguments:", Array.from(arguments));
        const scheduleDiv = document.getElementById(`schedule-${tripId}`);
        if (scheduleDiv.innerHTML) {
            scheduleDiv.innerHTML = ""; // Masque l'horaire si déjà affiché
@@ -345,16 +346,16 @@
        schedule.slice(currentStopSequence-1,schedule.length).forEach(entry => {  // we slice the schedule to only keep next stops in the popup
 	   const stopName = getStopName(entry.s,stopsData);
 	   const isNextStop = entry.s === nextStopId;
+	   
 	   // entry.a = arrival_time
-	   if (isNextStop)
-	       scheduleHtml += `<li ${isNextStop ? 'style="font-weight: bold; "' : ''}>
+	   if (isNextStop || stopName.toLowerCase().includes(filterStop.toLowerCase()))
+	       scheduleHtml += `<li ${(isNextStop || filterStop) ? 'style="font-weight: bold; "' : ''}>
          ${entry.a.slice(0, 5)} <span style="color: red;"> ${stringdelay} </span> - ${stopName} 
          </li>`;
 	   else
 	       scheduleHtml += `<li ${isNextStop ? 'style="font-weight: bold; "' : ''}>
          ${entry.a.slice(0, 5)} - ${stopName} 
-         </li>`;		 
-	   
+         </li>`;
        });
        scheduleHtml += "</ul>";
        
@@ -367,8 +368,21 @@
        }
 
    }
+
    
-   
+   function getStopTimeString(schedule,currentStopSequence,delay,filterStop) {
+       let output = "";
+       const stringdelay = delay > 0 ? '(+'+delay+')' : '';
+       schedule.slice(currentStopSequence-1,schedule.length).forEach(entry => {  // we slice the schedule to reduce search
+	   const stopName = getStopName(entry.s,stopsData);
+	   if (stopName.toLowerCase().includes(filterStop.toLowerCase())) {
+	       output = stopName+" "+entry.a.slice(0, 5) +" "+ '<span style="color: red;">'+stringdelay+'</span>'
+	   }
+       }
+       )
+       return output;
+   }
+	   
 
    let gtfsVehicleData = null;
    let formattedVehicleData = null;
@@ -414,8 +428,19 @@
 	   }
 	   
 	   // Récupère la valeur du filtre de ligne entré par l'utilisateur.ice
+	   let tooltip_permanent = 0;
+	   const filterLineStops = {};
 	   let filterValues = document.getElementById('busFilter').value.split(" ").map(num => num.trim()); // Convertit en tableau
-
+	   if (filterValues.length > 0 && filterValues[0] != ''){
+	       tooltip_permanent = 1;
+	       //console.log(filterValues);
+	       filterValues.forEach(value => {
+		   const [busLine, busStop] = value.split('?');
+		   filterLineStops[busLine.trim()] = busStop ? busStop.trim() : "";
+	       });
+	       //console.log(filterLineStops);
+	   }
+	   
 	   // Vérifier et initialiser busMarkers correctement
 	   if (!Array.isArray(busMarkers)) {
 	       busMarkers = [];
@@ -438,20 +463,24 @@
 	       const { vehicleId, latitude, longitude, speed, trip, stopId, currentStopSequence, timestamp } = bus;
 
 	       // Appliquer le filtre (si non vide)
-	       if (filterValues.length > 0 && filterValues[0] != '' && !filterValues.includes(trip.route_short_name.toString())) return;
-	       //if (!trip.route_short_name || (filterValues.length > 0 && filterValues[0] != '' && !filterValues.includes(trip.route_short_name.toString()))) return;
-	       
+	       if (filterValues.length > 0 && filterValues[0] != '' && !(trip.route_short_name.toString() in filterLineStops)) return;
+		   
 	       const nextStopName = getStopName(bus.stopId,stopsData);
 	       // not used anymore
-	       //const timeSinceStart = getTimeSinceStart(bus.trip.startTime);
 	       const startPoint = getStartPoint(bus.trip.tripId);
 	       const endPoint = getEndPoint(bus.trip.tripId);
-
+	       
 	       //Bus icon color can be either based on delay, or on bus speed.
 	       const schedule = horairesData[bus.trip.tripId];
 	       const delay = schedule ? estimateDelay(schedule,bus.currentStopSequence,bus.timestamp) : 0;
 	       const busColor = getBusDelayColor(delay);
-	       //const busColor = getBusSpeedColor(speed);
+
+	       const filterStop = filterLineStops[bus.trip.route_short_name];
+	       let filterStopTime = "";
+	       if (filterStop) {
+		   filterStopTime = getStopTimeString(horairesData[bus.trip.tripId],bus.currentStopSequence,delay,filterStop);
+		   if (!filterStopTime) return;
+	       }
 
 	       // Contenu du popup (pourrait n'être créé qu'onclick)
 	       //<b>Ligne ${trip.route_short_name}</b> - ${trip.route_long_name} <br>
@@ -464,8 +493,8 @@
          <i class="fas fa-map-marker-alt"></i> Position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} <br>
          <i class="fas fa-tachometer-alt"></i> Vitesse: ${speed ? speed + " km/h" : "N/A"} <br>
          <i class="fas fa-bus"></i> Prochain arrêt: ${nextStopName} ${delay>0 ? '<span style="color:red;">+'+delay+'</span>': ""}<br>
-         <a href="#" onclick="showSchedule('${bus.trip.tripId}','${bus.trip.startTime}', '${bus.currentStopSequence}', '${bus.stopId}', '${bus.timestamp}', '${delay}', this)">Voir l'horaire</a>
-                        <div id="schedule-${bus.trip.tripId}"></div>
+         <a href="#" onclick="showSchedule('${bus.trip.tripId}','${bus.trip.startTime}', '${bus.currentStopSequence}', '${bus.stopId}', '${bus.timestamp}', '${delay}', '${filterStop}', this)">Voir l'horaire</a>
+               <div id="schedule-${bus.trip.tripId}"></div>
                `;
 
 	       busIcon = null;
@@ -473,11 +502,11 @@
 	       if (bus.trip.route_short_name === "T1") {
 		   busIcon = L.divIcon({
 		       html: `
-			   <div class="bus-marker" style="border: 3px solid ${busColor};">
-                               <i class="fas fa-train-tram" style="color: ${busColor};"></i>
-                               <span class="bus-number">${bus.trip.route_short_name}</span>
-			   </div>
-                       `,
+	       <div class="bus-marker" style="border: 3px solid ${busColor};">
+               <i class="fas fa-train-tram" style="color: ${busColor};"></i>
+               <span class="bus-number">${bus.trip.route_short_name}</span>
+	       </div>
+               `,
 		       className: 'custom-bus-icon',
 		       iconSize: [40, 40],
 		       iconAnchor: [20, 20]
@@ -486,17 +515,17 @@
 	       else {
 		   busIcon = L.divIcon({
 		       html: `
-			   <div class="bus-marker" style="border: 3px solid ${busColor};">
-                               <i class="fas fa-bus" style="color: ${busColor};"></i>
-                               <span class="bus-number">${bus.trip.route_short_name}</span>
-			   </div>
-                       `,
+	       <div class="bus-marker" style="border: 3px solid ${busColor};">
+               <i class="fas fa-bus" style="color: ${busColor};"></i>
+               <span class="bus-number">${bus.trip.route_short_name}</span>
+	       </div>
+               `,
 		       className: 'custom-bus-icon',
 		       iconSize: [40, 40],
 		       iconAnchor: [20, 20]
 		   });
 	       }
-
+	       
 
                if (busMarkers[vehicleId]) {
                    // Mise à jour du marqueur existant // not used anymore since we delete busmarkers
@@ -506,8 +535,8 @@
                } else {
                    // Ajout d'un nouveau marqueur
                    busMarkers[vehicleId] = L.marker([latitude, longitude], { icon: busIcon}).addTo(map)
-		                            .bindTooltip(`<i class="fas fa-arrow-right"></i> ${endPoint}`, { permanent: false, direction: "top" })
-					    .bindPopup(popupContent);
+		                            .bindTooltip(`<i class="fas fa-arrow-right"></i> <b>${endPoint}</b> <br> ${filterStopTime}`, { permanent: tooltip_permanent, direction: "top" })
+			       .bindPopup(popupContent);
                }
 
            });
