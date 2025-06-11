@@ -373,13 +373,15 @@
    function getStopTimeString(schedule,currentStopSequence,delay,filterStop) {
        let output = "";
        const stringdelay = delay > 0 ? '(+'+delay+')' : '';
-       schedule.slice(currentStopSequence-1,schedule.length).forEach(entry => {  // we slice the schedule to reduce search
-	   const stopName = getStopName(entry.s,stopsData);
-	   if (stopName.toLowerCase().includes(filterStop.toLowerCase())) {
-	       output = stopName+" "+entry.a.slice(0, 5) +" "+ '<span style="color: red;">'+stringdelay+'</span>'
+       if (schedule) {
+	   schedule.slice(currentStopSequence-1,schedule.length).forEach(entry => {  // we slice the schedule to reduce search in remaining stops
+	       const stopName = getStopName(entry.s,stopsData);
+	       if (stopName.toLowerCase().includes(filterStop.toLowerCase())) {
+		   output = stopName+" "+entry.a.slice(0, 5) +" "+ '<span style="color: red;">'+stringdelay+'</span>'
+	       }
 	   }
+	   )
        }
-       )
        return output;
    }
 	   
