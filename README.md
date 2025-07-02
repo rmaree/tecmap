@@ -5,16 +5,13 @@
 A simple filter (by bus line numbers) allows to only display the buses of interest (e.g. "21 58" will display buses following lines 21 and 58; "2?guill 58?guill" will display buses of line 2 that will pass through a stop which name includes "guill" as well as expected time schedule, and buses nr 58 that will pass through a stop name including "guill" which allow to organize your commute based on real-time data).
 ![tecmap](tecmap-filters.jpg?raw=true "Filter in Tecmap")
 
-It has been developed using HTML+CSS+Javascript only to be run through a single HTML page without any web framework. It relies on transit data locally stored, and real-time data coming from a remote API using ProtoBuf format (for data in Wallonia you have to submit a request to get the data here: [https://www.letec.be/View/Open_Data_of_TEC/4296]).
+The typical use cases include individuals willing to know if their buses are on time to plan their trips, e.g. someone at home who doesn't want to wait 10 minutes outside in the cold, or someone who has the possibility of taking several different buses and wants to know which one will arrive first, or someone at their desk who wants to optimize their life and work until the last minute before their bus comes, or someone having a good time with a loved one but not willing to miss the very last bus ;) or willing to wait in a shady place rather than at the bus stop in direct sunlight. Another use case is someone willing to discover new places they can reach with public transport without knowing the existing routes a priori. Please note no automatic planning is provided, you must use your mental calculation skills to construct your route, which in principle consumes less energy than running a routing algorithm on GAFAM servers. ;)
+
+## Tech stack
+tecmap has been developed using HTML+CSS+Javascript only to be run through a single HTML page without any web framework. It relies on transit data locally stored, and real-time data coming from a remote API using ProtoBuf format (for data in Wallonia you have to submit a request to get the data here: [https://www.letec.be/View/Open_Data_of_TEC/4296]).
 This has been tested with GTFS static transit data for Wallonia in Belgium (TEC, downloaded from [https://beltac.tec-wl.be](https://beltac.tec-wl.be/))
 including routes and stops, and real-time traffic information assumed to be accessible through an API that returns it in ProtoBuf format.
 
-The typical use cases are individuals willing to know if their buses are on time to plan their trips, e.g. someone at home who doesn't 
-want to wait 10 minutes outside in the cold, or someone who has the possibility of taking several different buses and wants to know which one will arrive first,
-or someone at their desk who wants to optimize their life and work until the last minute before their bus comes, or someone having a good time with a loved one 
-but not willing to miss the very last bus. ;) Another use case is someone willing to discover new places they can reach with public transport without knowing the existing routes a priori.
-Please note no automatic planning is provided, you must use your mental calculation skills to construct your route, which in principle consumes 
-less energy than running a routing algorithm on GAFAM servers. ;)
 
 ## Data preparation
 1. Create `data/` local directory
