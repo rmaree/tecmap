@@ -3,7 +3,7 @@
 
 ![tecmap](tecmap-liege.jpg?raw=true "Tecmap in Liège, Belgium")
 
-It has been developed using HTML+CSS+Javascript only to be run through a single HTML page without any web framework. It relies on transit data locally stored, and real-time data coming from a remote API using ProtoBuf format.
+It has been developed using HTML+CSS+Javascript only to be run through a single HTML page without any web framework. It relies on transit data locally stored, and real-time data coming from a remote API using ProtoBuf format (for data in Wallonia you have to submit a request to get the data here: [https://www.letec.be/View/Open_Data_of_TEC/4296]).
 This has been tested with GTFS static transit data for Wallonia in Belgium (TEC, downloaded from [https://beltac.tec-wl.be](https://beltac.tec-wl.be/))
 including routes and stops, and real-time traffic information assumed to be accessible through an API that returns it in ProtoBuf format.
 
@@ -19,7 +19,7 @@ less energy than running a routing algorithm on GAFAM servers. ;)
    
 3. Download into ´data/` local directory GTFS static routes and stops data (latest version from [https://beltac.tec-wl.be](https://beltac.tec-wl.be/Current%20GTFS/) or [https://busmaps.com/en/belgium/TEC-Transit/tec-transit](https://busmaps.com/en/belgium/TEC-Transit/tec-transit) )
    
-5. Convert data using `python3 convert_data.py` script:
+5. Convert GTFS static and dynamic data using `python3 convert_data.py` script:
 
     2.1 static `data/stops.txt` will be converted to `data/stops.js`  (contains names of bus stops)
    
