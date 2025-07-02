@@ -32,7 +32,7 @@ including routes and stops, and real-time traffic information assumed to be acce
 
 ## Edit tecmap.html
 1. Edit the `loadScheduleFile()` function in **tecmap.html** if local files are not located in data/ or named in another way if you modified the convert_data.py script.
-3. Edit **RT_API_URL** in **config.js** so that it refers to the API endpoint that returns real-time traffic data in ProtoBuf format using the Protocol definition file for GTFS Realtime from https://github.com/google/transit/blob/master/gtfs-realtime/proto/gtfs-realtime.proto. In our code function transformGTFSData, we convert the Protobuf data into a JSON structure for easier manipulation, formatted as follows:
+3. Edit **RT_API_URL** in **config.js** so that it refers to the API endpoint that returns real-time traffic data in ProtoBuf format using the aforementioned Protocol definition file. In our code function transformGTFSData, we convert the Protobuf data into a JSON structure for easier manipulation, formatted as follows:
 
 ```
 {
@@ -89,6 +89,7 @@ Please feel free to submit Issues or contact me.
 
 ## Acknowledgments
 The map uses the open access [http://openstreetmap.org/](http://openstreetmap.org/) data and the open-source [https://leafletjs.com/](https://leafletjs.com/) Javascript library.
+We use open data from TEC [https://www.letec.be/] without affiliation to this organization.
 
 
 
