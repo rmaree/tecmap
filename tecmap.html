@@ -132,7 +132,7 @@
    
    // Fonction pour charger dynamiquement le fichier des horaires en fonction du jour et de la semaine (congés scolaires ou pas)
    function loadScheduleFile() {
-       const holidayWeeks = [1, 9, 10, 18, 19, 27, 28, 29, 30, 31, 32, 33, 34, 43, 44, 52]; //Belgium holiday weeks in 2025
+       const holidayWeeks = [1, 9, 10, 18, 19, 28, 29, 30, 31, 32, 33, 34, 43, 44, 52]; //Belgium holiday weeks in 2025
        const dayOfWeek = new Date().getDay();
        const currentWeek = getISOWeekNumber();
        let suffix = holidayWeeks.includes(currentWeek) ? "_VAC" : "";
