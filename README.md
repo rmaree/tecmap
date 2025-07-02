@@ -17,9 +17,9 @@ less energy than running a routing algorithm on GAFAM servers. ;)
 ## Data preparation
 1. Create `data/` local directory
    
-3. Download into ´data/` local directory GTFS static routes and stops data (latest version from [https://beltac.tec-wl.be](https://beltac.tec-wl.be/Current%20GTFS/) or [https://busmaps.com/en/belgium/TEC-Transit/tec-transit](https://busmaps.com/en/belgium/TEC-Transit/tec-transit) )
+2. Download into ´data/` local directory GTFS static routes and stops data (latest version from [https://beltac.tec-wl.be](https://beltac.tec-wl.be/Current%20GTFS/) or [https://busmaps.com/en/belgium/TEC-Transit/tec-transit](https://busmaps.com/en/belgium/TEC-Transit/tec-transit) )
    
-5. Convert GTFS static and dynamic data using `python3 convert_data.py` script:
+3. Convert GTFS static and dynamic data using `python3 convert_data.py` script:
 
     2.1 static `data/stops.txt` will be converted to `data/stops.js`  (contains names of bus stops)
    
@@ -27,7 +27,9 @@ less energy than running a routing algorithm on GAFAM servers. ;)
    The original data is splitted into multiple .js files using the filter_strings to avoid loading too much data in the browser. In tecmap.html the appropriate js file is loaded on-the-fly according e.g. to the day of the week and holidays (Belgium).
 
     2.3 static `data/routes.txt` will be converted to `data/routes.js`  (contains route short and long names)
-   
+
+4. Get the latest version of https://github.com/google/transit/blob/master/gtfs-realtime/proto/gtfs-realtime.proto (ProtoBuf file definition) and copy it in data/
+
 
 ## Edit tecmap.html
 1. Edit the `loadScheduleFile()` function in **tecmap.html** if local files are not located in data/ or named in another way if you modified the convert_data.py script.
@@ -76,7 +78,7 @@ less energy than running a routing algorithm on GAFAM servers. ;)
 ```
 
 
-3. Edit **TILE_API_KEY** in **config.js** if you want to use the Transport raster tiles from Thunderforest.com [https://www.thunderforest.com/maps/transport/](https://www.thunderforest.com/maps/transport/), otherwise default OSM [https://openstreetmap.org/](https://openstreetmap.org/) raster tiles will be used.
+3. Edit **TILE_API_KEY** in **config.js** if you want to use the Transport raster tiles from Thunderforest.com [https://www.thunderforest.com/maps/transport/](https://www.thunderforest.com/maps/transport/). For individuals you can have a free key with a limited number of tile requests per month which should be enough for regular use. Otherwise default OSM [https://openstreetmap.org/](https://openstreetmap.org/) raster tiles will be used.
 
 ## Run locally
 Open the tecmap.html page in your desktop computer's browser. Or copy the HTML page and data/ to a web server for remote access.
