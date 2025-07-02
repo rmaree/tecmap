@@ -20,22 +20,31 @@ import json
 import csv
 import sys
 
-
-stop_times_csv_input_filename = "data/stop_times.txt"  # Fichier GTFS csv incluant tous les stop_times
-stop_times_js_output_filename = "data/stop_times-SEM.js"    # Fichier js de sortie, à renommer si e.g. par jour stop_times-DIM.js 
-#stop_times_js_output_filename = "data/stop_times-SEM_VAC.js"    # Fichier js de sortie, à renommer si e.g. par jour stop_times-DIM.js
-#Filters to reduce size of stop_times data, depending on regions and/or weekdays
-filter_strings = ["_LG_N3-Sem-", "-SC-N3-Sem-", "-choi-Sem-","BW_A_P2-Sem-"] #regular weeks
-#filter_strings = ["_LG_ME-Mercredi-","SC-R3-Mercredi-"] #wednesday
-#filter_strings = ["-Sem-Vac-","-Sem-Cong"] #"_PA_2025-25_SP_VA-Sem-Vac","choi-Sem-Cong"] #holiday weeks
-#filter_strings = ["-Samedi-"] #"H25_P2-Sem"]
-#filter_strings = ["-Dimanche-"] #"H25_P2-Sem"]
-#filter_strings = ["-Mercredi-"] #"H25_P2-Sem"]
+#Input files (GTFS in text format, e.g. https://opendata.tec-wl.be/Current%20GTFS/)
 stops_csv_input_filename = "data/stops.txt" # Fichier GTFS csv incluant toutes les routes/trips
-stops_js_output_filename = "data/stops.js"
-
 routes_csv_input_filename = "data/routes.txt" #fichier GTFS statique CSV incluant toutes les routes
+stop_times_csv_input_filename = "data/stop_times.txt"  # Fichier GTFS csv incluant tous les stop_times
+
+#Output Javascript files 
+stops_js_output_filename = "data/stops.js"
 routes_js_output_filename = "data/routes.js" #fichier JS de sortie indexé par route_id
+stop_times_js_output_filename_SEM = "data/stop_times-SEM.js"
+stop_times_js_output_filename_MER = "data/stop_times-MER.js"
+stop_times_js_output_filename_SAM = "data/stop_times-SAM.js"
+stop_times_js_output_filename_DIM = "data/stop_times-DIM.js" # Fichier js de sortie
+stop_times_js_output_filename_VAC = "data/stop_times-SEM_VAC.js"    # Fichier js de sortie, à renommer si e.g. par jour stop_times-DIM.js
+
+#Filters stop_times per days to reduce size of output js stop_times, depending on regions and/or weekdays
+filter_strings_SEM = ["_LG_N3-Sem-", "-SC-N3-Sem-", "-choi-Sem-","BW_A_P2-Sem-"] #regular weeks
+filter_strings_MER = ["-Mercredi-"] #"H25_P2-Sem"]
+filter_strings_SAM = ["-Samedi-"] #"H25_P2-Sem"]
+filter_strings_DIM = ["-Dimanche-"] #"H25_P2-Sem"]
+filter_strings_VAC = ["C2025-choi-Sem-Cong-","SP_VA-Sem-Vac-","-Sem-Cong-","VA-Sem-Vac-","N_2025-VA-Sem-Vac-"] #"_PA_2025-25_SP_VA-Sem-Vac","choi-Sem-Cong"] #holiday weeks
+#filter_strings = ["LG_N3-Sem","SC-N3-Sem-N-3-06","N3-Sem-N-3-06","H25_P2-Sem-N-3"] #regular weeks
+#filter_strings = ["L_PA_2025-25_LG_ME-Mercredi-06","SC-R3-Mercredi-","-choi-Mercredi-","-BW_A_P2-Mercredi-"] #wednesday
+#filter_strings = ["LG_VA-Sem-Vac","-X-2025-VA-Sem-Vac-","-N_2025-VA-Sem-Vac","-Sem-Cong"] #"_PA_2025-25_SP_VA-Sem-Vac","choi-Sem-Cong"] #holiday weeks
+
+
 
 # ----------------------------------------------------------------------
 # Fonction pour convertir routes.txt du format csv à un dictionnaire JS
@@ -54,7 +63,7 @@ def convert_routes_csv_to_js2(input_csv, output_js):
     
     with open(output_js, mode="w", encoding="utf-8") as jsfile:
         jsfile.write(js_content)
-    print(f"JavaScript file '{output_js}' generated successfully.")
+    print(f"Conversion static routes file terminée '{output_js}' generated successfully.")
 
         
 
@@ -91,7 +100,7 @@ def convert_stop_times_csv_to_js(csv_filename, js_filename, filter_strings=None)
     with open(js_filename, mode="w", encoding="utf-8") as js_file:
         js_file.write(f"const horairesData = {json_data};\n")
 
-    print(f"Conversion stop_times terminée {js_filename}")
+    print(f"Conversion dynamic stop_times terminée {js_filename}")
 
 
 
@@ -110,15 +119,20 @@ def convert_stops_csv_to_js(csv_filename, js_filename):
     with open(js_filename, mode="w", encoding="utf-8") as js_file:
         js_file.write(f"const stopsData = {stops};\n")
 
-    print(f"Conversion stops terminée : {js_filename}")
+    print(f"Conversion static stops terminée : {js_filename}")
 
     
 
-# Execute conversions
+# Execute conversions for static data
 convert_routes_csv_to_js2(routes_csv_input_filename, routes_js_output_filename)
-convert_stop_times_csv_to_js(stop_times_csv_input_filename, stop_times_js_output_filename, filter_strings)
 convert_stops_csv_to_js(stops_csv_input_filename, stops_js_output_filename)
 
+#Execute conversios for dynamic data
+convert_stop_times_csv_to_js(stop_times_csv_input_filename, stop_times_js_output_filename_SEM, filter_strings_SEM)
+convert_stop_times_csv_to_js(stop_times_csv_input_filename, stop_times_js_output_filename_MER, filter_strings_MER)
+convert_stop_times_csv_to_js(stop_times_csv_input_filename, stop_times_js_output_filename_SAM, filter_strings_SAM)
+convert_stop_times_csv_to_js(stop_times_csv_input_filename, stop_times_js_output_filename_DIM, filter_strings_DIM)
+convert_stop_times_csv_to_js(stop_times_csv_input_filename, stop_times_js_output_filename_VAC, filter_strings_VAC)
 
 
 #not used, for stats only
