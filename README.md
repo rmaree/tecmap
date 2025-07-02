@@ -19,18 +19,18 @@ less energy than running a routing algorithm on GAFAM servers. ;)
    
 3. Download into ´data/` local directory GTFS static routes and stops data (latest version from [https://beltac.tec-wl.be](https://beltac.tec-wl.be/Current%20GTFS/) or [https://busmaps.com/en/belgium/TEC-Transit/tec-transit](https://busmaps.com/en/belgium/TEC-Transit/tec-transit) )
    
-5. Convert data using `convert_data.py` Python3 script:
+5. Convert data using `python3 convert_data.py` script:
 
-    2.1 `data/stops.txt` will be converted to `data/stops.js`  (contains names of bus stops)
+    2.1 static `data/stops.txt` will be converted to `data/stops.js`  (contains names of bus stops)
    
-    2.2 `data/stop_times.txt` will be converted to `data/stop_times.js`(contains routes with sequences of bus stops and arrival times)
-   I recommend to split original data into multiple .js files using the filter_strings, and load in tecmap.html the appropriate js file on-the-fly according e.g. to the day of the week.
+    2.2 dynamic `data/stop_times.txt` (contains routes with sequences of bus stops and arrival times) will be converted to multiple `data/stop_times.js` files splitted by days using filter_strings 
+   The original data is splitted into multiple .js files using the filter_strings to avoid loading too much data in the browser. In tecmap.html the appropriate js file is loaded on-the-fly according e.g. to the day of the week and holidays (Belgium).
 
-    2.3 `data/routes.txt` will be converted to `data/routes.js`  (contains route short and long names)
+    2.3 static `data/routes.txt` will be converted to `data/routes.js`  (contains route short and long names)
    
 
 ## Edit tecmap.html
-1. Edit the `loadScheduleFile()` function in **tecmap.html** if local files are not located in data/ or named in another way e.g. in the case of multiple files with splitted information per day.
+1. Edit the `loadScheduleFile()` function in **tecmap.html** if local files are not located in data/ or named in another way if you modified the convert_data.py script.
 3. Edit **RT_API_URL** in **config.js** so that it refers to the API endpoint that returns real-time traffic data in ProtoBuf format using the Protocol definition file for GTFS Realtime from https://github.com/google/transit/blob/master/gtfs-realtime/proto/gtfs-realtime.proto. In our code function transformGTFSData, we convert the Protobuf data into a JSON structure for easier manipulation, formatted as follows:
 
 ```
