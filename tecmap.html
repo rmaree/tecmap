@@ -10,13 +10,11 @@
     <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script> 
-    <!--<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"> -->
-    <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>  -->
     
-    <!-- load local transit data: stops and trips -->
+    <!-- Load local transit data: stops and trips -->
     <script src="data/stops.js"></script>  <!-- loads stopsData  -->
 
-    <!-- load local routes -->
+    <!-- Load local routes -->
     <script src="data/routes.js"></script>  <!-- loads routeData  -->
     
 
@@ -29,7 +27,7 @@
     <!-- Style FontAwesome pour les icônes -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
-    <!-- load protobuf library -->
+    <!-- Load protobuf library to read real-time data-->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/protobufjs/7.2.0/protobuf.min.js"></script>
     
     
@@ -137,8 +135,6 @@
        const currentWeek = getISOWeekNumber();
        let suffix = holidayWeeks.includes(currentWeek) ? "_VAC" : "";
        let scriptFile = "data/stop_times-SEM"+suffix+".js"; // Par défaut, horaires pour les jours de la semaine
-
-       console.log(scriptFile);
        
        if (dayOfWeek === 0) { // Dimanche holidays / not holidays
            scriptFile = "data/stop_times-DIM.js";
@@ -182,7 +178,7 @@
 			       { maxZoom: 19,
 				 attribution: '&copy; Öpnvkarte'});
 
-   // tileLayer from thunderforest can be used using an apikey
+   // tileLayer from thunderforest can be used using an apikey to be set in config.js file
    if (TILE_API_KEY) {
        var transportTileLayer = L.tileLayer('https://tile.thunderforest.com/transport/{z}/{x}/{y}.png?apikey='+TILE_API_KEY, {
      	   attribution: 'OpenStreetMap, &copy; <a href="https://www.thunderforest.com/maps/transport/">Thunderforest</a>',
@@ -238,8 +234,7 @@
        fetchRealTimeBusData(); // Recupere data apres la suppression du filtre
    }
    
-   // Calcul du nombre de minutes depuis le démarrage du bus
-   // not used anymore
+   // Calcul du nombre de minutes depuis le démarrage du bus, deprecated, not used anymore
    function getTimeSinceStart(startTime) {
        const now = new Date(); // Heure actuelle
        const currentDate = now.toISOString().split('T')[0];
@@ -296,6 +291,7 @@
 
    
    // Calcule le retard d'un bus etant donnee le trajet theorique (schedule), le prochain arrêt, et le timestamp temps reel
+   // TO DO: could use real-time delays from dynamic data
    function estimateDelay(schedule,currentStopSequence,timestamp) {
        //comparer l'heure qu'il est avec l'heure à laquelle il est supposé arriver au prochain arret, si heure courante superieure = retard
        if (schedule[currentStopSequence-1])
@@ -316,7 +312,6 @@
        if (schedule)
 	   return getStopName(schedule[(schedule.length)-1].s,stopsData)  // s = stopId
        else return " "
-
    }
 
    // Genere l'HTML de l'horaire de ce trip avec affichage du retard
@@ -343,10 +338,9 @@
        // Construire l'affichage des horaires
        let scheduleHtml = "<ul>";
        //scheduleHtml += `Delta estimé: ${estimate `;
-       schedule.slice(currentStopSequence-1,schedule.length).forEach(entry => {  // we slice the schedule to only keep next stops in the popup
+       schedule.slice(currentStopSequence-1,schedule.length).forEach(entry => {  // we slice the schedule to only keep next stops in the popup for lisibility
 	   const stopName = getStopName(entry.s,stopsData);
 	   const isNextStop = entry.s === nextStopId;
-	   
 	   // entry.a = arrival_time
 	   if (isNextStop || stopName.toLowerCase().includes(filterStop.toLowerCase()))
 	       scheduleHtml += `<li ${(isNextStop || filterStop) ? 'style="font-weight: bold; "' : ''}>
@@ -369,7 +363,7 @@
 
    }
 
-   
+   //Extract sheduled time at precise stop
    function getStopTimeString(schedule,currentStopSequence,delay,filterStop) {
        let output = "";
        const stringdelay = delay > 0 ? '(+'+delay+')' : '';
@@ -390,7 +384,6 @@
    let formattedVehicleData = null;
    
    async function loadGTFSVehicleData() {
-       //gtfsData = await loadGTFSProtobuf();
        gtfsVehicleData = await loadGTFSProtobuf();
        //console.log("Données chargées :", gtfsVehicleData);
    }
@@ -421,8 +414,6 @@
    async function fetchRealTimeBusData(update=1) { // by default this function will update gtfs remote data
        try {
 	   // Uses external API to get real-time json data
-	   //const response = await fetch(RT_API_URL); 
-           //const data = await response.json();
 	   if (update) { //when using filter, we don't reload gtfs but apply filter on current data
 	       await loadGTFSVehicleData();
 	       formattedVehicleData = transformVehicleGTFSData(gtfsVehicleData);
@@ -435,12 +426,10 @@
 	   let filterValues = document.getElementById('busFilter').value.split(" ").map(num => num.trim()); // Convertit en tableau
 	   if (filterValues.length > 0 && filterValues[0] != ''){
 	       tooltip_permanent = 1;
-	       //console.log(filterValues);
 	       filterValues.forEach(value => {
 		   const [busLine, busStop] = value.split('?');
 		   filterLineStops[busLine.trim()] = busStop ? busStop.trim() : "";
 	       });
-	       //console.log(filterLineStops);
 	   }
 	   
 	   // Vérifier et initialiser busMarkers correctement
@@ -460,7 +449,8 @@
 	       .catch(error => console.error(error.message));
 	   }
 	   first=0;
-	   
+
+	   //Parcours toutes les vehicle data temps-reel
 	   formattedVehicleData.vehicles.forEach(bus => {
 	       const { vehicleId, latitude, longitude, speed, trip, stopId, currentStopSequence, timestamp } = bus;
 
@@ -468,7 +458,6 @@
 	       if (filterValues.length > 0 && filterValues[0] != '' && !(trip.route_short_name.toString() in filterLineStops)) return;
 		   
 	       const nextStopName = getStopName(bus.stopId,stopsData);
-	       // not used anymore
 	       const startPoint = getStartPoint(bus.trip.tripId);
 	       const endPoint = getEndPoint(bus.trip.tripId);
 	       
@@ -501,7 +490,7 @@
 
 	       busIcon = null;
 	       // Définition de l'icône avec couleur dynamique en fonction de la vitesse
-	       if (bus.trip.route_short_name === "T1") {
+	       if (bus.trip.route_short_name === "T1") { //specific to Liege tram, not yet available
 		   busIcon = L.divIcon({
 		       html: `
 	       <div class="bus-marker" style="border: 3px solid ${busColor};">
@@ -530,7 +519,7 @@
 	       
 
                if (busMarkers[vehicleId]) {
-                   // Mise à jour du marqueur existant // not used anymore since we delete busmarkers
+                   // Mise à jour du marqueur existant // not used anymore since we delete busmarkers?
                    busMarkers[vehicleId].setLatLng([latitude, longitude])
 					.setPopupContent(popupContent)
 					.setIcon(busIcon);
