@@ -552,8 +552,6 @@
        });
    }
 
-   
-
    async function fetchRealTimeAlertData() {
        console.log("Fetching alerts once for this session");
        await loadGTFSAlertData();
@@ -627,28 +625,17 @@
 		   if (!filterStopTime) return;
 	       }
 
-	       //  if (alertsByRoute[bus.trip.routeId.split("-")[0]]) {
-	       //   console.log(bus.trip.routeId);
-	       // console.log(trip.route_short_name,' ',trip.route_long_name);
-	       //	   console.log(alertsByRoute[bus.trip.routeId.split("-")[0]]);
-	       //     }
-
-	       const alerts = alertsByRoute[bus.trip.routeId.split("-")[0]] || [];
-	       //let alertDescription = alerts
-		//   .map(alert => `• ${alert.description}`)
-		//   .join('\n');
+	       const routeIdForAlerts = bus.trip.routeId.split("-")[0]; //alerts are stored using simplified id
+	       const alerts = alertsByRoute[routeIdForAlerts] || [];
 	       
-
 	       //<b>Ligne ${trip.route_short_name}</b> ${trip.route_long_name} <br>
-	       
 	       // Contenu du popup (pourrait n'être créé qu'onclick)
 	       //<b>Ligne ${trip.route_short_name}</b> - ${trip.route_long_name} <br>
 	       //🏁 Démarrage: ${bus.trip.startTime} (il y a ${timeSinceStart} minutes)<br>
-	       //<a href="#" onclick="setAlertsForRoute('${bus.trip.routeId.split("-")[0]}')">Alertes</a><br>
 	       
                const popupContent = `
          <b>Ligne ${trip.route_short_name}</b> ${trip.route_long_name} <br>
-<a href="#" onclick="setAlertsForRoute('${bus.trip.routeId.split("-")[0]}')"> <button id="open-alerts-btn-popup">📢 Alertes (${alerts.length})</button></a><br>
+${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts+'\')"> <button id="open-alerts-btn-popup">📢 Alertes ('+alerts.length+')</button></a><br>': ""}
          De: ${startPoint} <br>
          Vers: <i class="fas fa-arrow-right"></i> ${endPoint} <br>
          <!-- 🚌 Bus ID: ${vehicleId} <br> //-->
