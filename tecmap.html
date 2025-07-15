@@ -114,8 +114,63 @@
 	 max-width: 400px; 
 	 white-space: normal; 
      }
-     
-     
+
+
+     /* Styles related to alert panel */
+     #alerts-panel {
+	 position: fixed;
+	 right: -400px;
+	 top: 0;
+	 width: 400px;
+	 height: 100%;
+	 background-color: #fff;
+	 box-shadow: -2px 0 8px rgba(0,0,0,0.2);
+	 z-index: 1000;
+	 transition: right 0.3s ease;
+	 display: flex;
+	 flex-direction: column;
+     }
+
+     #alerts-panel.open {
+	 right: 0;
+     }
+
+     #alerts-panel .header {
+	 display: flex;
+	 /* justify-content: space-between; */
+	 align-items: left;
+	 padding: 1em;
+	 background-color: #eee;
+	 font-weight: bold;
+	 border-bottom: 1px solid #ccc;
+     }
+
+     #alerts-content {
+	 padding: 1em;
+	 overflow-y: auto;
+	 flex: 1;
+     }
+
+     .alert {
+	 margin-bottom: 1em;
+	 border-left: 4px solid #d9534f;
+	 padding-left: 1em;
+	 background-color: #fdf0f0;
+     }
+
+     #open-alerts-btn-popup {
+	 position: left;
+	 /*bottom: 3em;*/
+	 /*right: 1em;*/
+	 /*padding: 0.5em 1em;*/
+	 background: #d9534f;
+	 color: #fff;
+	 border: none;
+	 border-radius: 4px;
+	 z-index: 1001;
+	 cursor: pointer;
+     }
+
     </style>
 </head>
 <body>
@@ -130,11 +185,65 @@
       <p style="margin: 0;">Nombre de bus visibles: <span id="busCount">0</span></p>
   </div>
 
+
+  <!-- Panneau latéral Alertes -->
+  <div id="alerts-panel">
+      <div class="header">
+	  <span id="alerts-title">Alertes</span>
+	  <button id="close-alerts-btn">✖</button>
+      </div>
+      <div id="alerts-content">
+	  <!-- Alertes seront affichées ici dynamiquement -->
+      </div>
+  </div>
+  
+
+
   <div id="map"></div>
 
   <script>
    let busMarkers = {};  // Marqueurs des bus
 
+
+   
+   //fill the Alert panel with data related to the routeId
+   function setAlertsForRoute(routeId) {
+       const panel = document.getElementById('alerts-panel');
+       const content = document.getElementById('alerts-content');
+       const title = document.getElementById('alerts-title');
+       //console.log(routeId);
+       content.innerHTML = '';
+       title.textContent = `Alertes ligne ${routeId}`;
+
+       const alerts = alertsByRoute[routeId] || [];
+
+       if (alerts.length === 0) {
+	   content.innerHTML = '<p>Aucune alerte active.</p>';
+       } else {
+	   let stopNames = ' ';
+	   alerts.forEach(alert => {
+	       stopNames = alert.stops.map(stopId => getStopName(stopId,stopsData)).join(', ');
+	       const div = document.createElement('div');
+	       div.className = 'alert';
+	       if (stopNames) {
+		   div.innerHTML = `
+		       <strong>${alert.description}</strong><br>
+		       🕒 Du ${alert.start} au ${alert.end}<br>
+		       🚏 Arrêts concernés : ${stopNames}
+		   `;
+	       }
+	       else {
+		   div.innerHTML = `
+		       <strong>${alert.description}</strong><br>
+		       🕒 Du ${alert.start} au ${alert.end}<br>
+		   `;  
+	       }
+	       content.appendChild(div);
+	   });
+       }
+       panel.classList.add('open');
+   }
+   
    // Fonction pour calculer le numéro de la semaine actuelle (ISO 8601)
    function getISOWeekNumber(date = new Date()) {
        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -152,11 +261,11 @@
        let scriptFile = "data/stop_times-SEM"+suffix+".js"; // Par défaut, horaires pour les jours de la semaine
        
        if (dayOfWeek === 0) { // Dimanche holidays / not holidays
-           scriptFile = "data/stop_times-DIM.js";
+	   scriptFile = "data/stop_times-DIM.js";
        } else if (dayOfWeek === 6) { // Samedi
-           scriptFile = "data/stop_times-SAM.js";
+	   scriptFile = "data/stop_times-SAM.js";
        } else if (dayOfWeek === 3 && !holidayWeeks.includes(currentWeek)) { // Mercredi, wednesday in SEM during holidays
-           scriptFile = "data/stop_times-MER.js";
+	   scriptFile = "data/stop_times-MER.js";
        }
 
        console.log(scriptFile);
@@ -304,6 +413,19 @@
        return Math.floor(date.getTime() / 1000);
    }
 
+   function timestampToDate(timestamp) {
+       //const d = new Date(timestamp * 1000);
+       const d = new Date(timestamp*1000);
+       return d.toLocaleString('fr-BE', {
+	   day: '2-digit', month: '2-digit',
+	   hour: '2-digit', minute: '2-digit',
+	   year: 'numeric'
+       });
+       
+       return d;
+   }
+   
+
    
    // Calcule le retard d'un bus etant donnee le trajet theorique (schedule), le prochain arrêt, et le timestamp temps reel
    // TO DO: could use real-time delays from dynamic data
@@ -359,11 +481,11 @@
 	   // entry.a = arrival_time
 	   if (isNextStop || stopName.toLowerCase().includes(filterStop.toLowerCase()))
 	       scheduleHtml += `<li ${(isNextStop || filterStop) ? 'style="font-weight: bold; "' : ''}>
-         ${entry.a.slice(0, 5)} <span style="color: red;"> ${stringdelay} </span> - ${stopName} 
-         </li>`;
+           ${entry.a.slice(0, 5)} <span style="color: red;"> ${stringdelay} </span> - ${stopName} 
+           </li>`;
 	   else
 	       scheduleHtml += `<li ${isNextStop ? 'style="font-weight: bold; "' : ''}>
-         ${entry.a.slice(0, 5)} - ${stopName} 
+           ${entry.a.slice(0, 5)} - ${stopName} 
          </li>`;
        });
        scheduleHtml += "</ul>";
@@ -393,36 +515,52 @@
        }
        return output;
    }
-	   
+   
 
    let gtfsVehicleData = null;
    let formattedVehicleData = null;
+   let formattedAlertData = null;
+   let gtfsAlertData = null;
    
+
    async function loadGTFSVehicleData() {
-       gtfsVehicleData = await loadGTFSProtobuf();
-       //console.log("Données chargées :", gtfsVehicleData);
+       gtfsVehicleData = await loadGTFSProtobuf(RT_VEHICLE_API_URL);
+       //console.log("Données Vehicles chargées :", gtfsVehicleData);
+   }
+
+   async function loadGTFSAlertData() {
+       gtfsAlertData = await loadGTFSProtobuf(RT_ALERT_API_URL);
+       console.log("Données Alerts chargées :", gtfsAlertData);
    }
 
 
    async function waitForHorairesData(timeout = 10000, interval = 100) {
-    return new Promise((resolve, reject) => {
-        const startTime = Date.now();
+       return new Promise((resolve, reject) => {
+           const startTime = Date.now();
 
-        const check = () => {
-            if (typeof horairesData !== "undefined") {
-                resolve(horairesData);
-            } else if (Date.now() - startTime > timeout) {
-                reject(new Error("Timeout: horairesData n'a pas été chargé à temps."));
-            } else {
-                setTimeout(check, interval);
-            }
-        };
+           const check = () => {
+               if (typeof horairesData !== "undefined") {
+                   resolve(horairesData);
+               } else if (Date.now() - startTime > timeout) {
+                   reject(new Error("Timeout: horairesData n'a pas été chargé à temps."));
+               } else {
+                   setTimeout(check, interval);
+               }
+           };
 
-        check();
-    });
+           check();
+       });
    }
 
    
+
+   async function fetchRealTimeAlertData() {
+       console.log("Fetching alerts once for this session");
+       await loadGTFSAlertData();
+       transformAlertGTFSData(gtfsAlertData);
+       console.log(alertsByRoute);
+       console.log(alertsByStop);
+   }
    
    // ---------------------------------------------------------------------------------------------
    // Fonction principale pour récupérer les donnees temps reel et afficher les marqueurs des bus sur la carte
@@ -432,13 +570,14 @@
 	   if (update) { //when using filter, we don't reload gtfs but apply filter on current data
 	       await loadGTFSVehicleData();
 	       formattedVehicleData = transformVehicleGTFSData(gtfsVehicleData);
-	       console.log(JSON.stringify(formattedVehicleData, null, 2)); // Affichage formaté en JSON
+	       //console.log(JSON.stringify(formattedVehicleData, null, 2)); // Affichage formaté en JSON
 	   }
 	   
 	   // Récupère la valeur du filtre de ligne entré par l'utilisateur.ice
 	   let tooltip_permanent = 0;
 	   const filterLineStops = {};
 	   let filterValues = document.getElementById('busFilter').value.split(" ").map(num => num.trim()); // Convertit en tableau
+	   // Check the filter string to look for ? to identify specific busstop
 	   if (filterValues.length > 0 && filterValues[0] != ''){
 	       tooltip_permanent = 1;
 	       filterValues.forEach(value => {
@@ -469,9 +608,9 @@
 	   formattedVehicleData.vehicles.forEach(bus => {
 	       const { vehicleId, latitude, longitude, speed, trip, stopId, currentStopSequence, timestamp } = bus;
 
-	       // Appliquer le filtre (si non vide)
+	       // Appliquer le filtre (si non vide), we do not display bus lines which are not in the filter
 	       if (filterValues.length > 0 && filterValues[0] != '' && !(trip.route_short_name.toString() in filterLineStops)) return;
-		   
+	       
 	       const nextStopName = getStopName(bus.stopId,stopsData);
 	       const startPoint = getStartPoint(bus.trip.tripId);
 	       const endPoint = getEndPoint(bus.trip.tripId);
@@ -488,11 +627,28 @@
 		   if (!filterStopTime) return;
 	       }
 
+	       //  if (alertsByRoute[bus.trip.routeId.split("-")[0]]) {
+	       //   console.log(bus.trip.routeId);
+	       // console.log(trip.route_short_name,' ',trip.route_long_name);
+	       //	   console.log(alertsByRoute[bus.trip.routeId.split("-")[0]]);
+	       //     }
+
+	       const alerts = alertsByRoute[bus.trip.routeId.split("-")[0]] || [];
+	       //let alertDescription = alerts
+		//   .map(alert => `• ${alert.description}`)
+		//   .join('\n');
+	       
+
+	       //<b>Ligne ${trip.route_short_name}</b> ${trip.route_long_name} <br>
+	       
 	       // Contenu du popup (pourrait n'être créé qu'onclick)
 	       //<b>Ligne ${trip.route_short_name}</b> - ${trip.route_long_name} <br>
 	       //🏁 Démarrage: ${bus.trip.startTime} (il y a ${timeSinceStart} minutes)<br>
+	       //<a href="#" onclick="setAlertsForRoute('${bus.trip.routeId.split("-")[0]}')">Alertes</a><br>
+	       
                const popupContent = `
          <b>Ligne ${trip.route_short_name}</b> ${trip.route_long_name} <br>
+<a href="#" onclick="setAlertsForRoute('${bus.trip.routeId.split("-")[0]}')"> <button id="open-alerts-btn-popup">📢 Alertes (${alerts.length})</button></a><br>
          De: ${startPoint} <br>
          Vers: <i class="fas fa-arrow-right"></i> ${endPoint} <br>
          <!-- 🚌 Bus ID: ${vehicleId} <br> //-->
@@ -508,11 +664,11 @@
 	       if (bus.trip.route_short_name === "T1") { //specific to Liege tram, not yet available
 		   busIcon = L.divIcon({
 		       html: `
-	       <div class="bus-marker" style="border: 3px solid ${busColor};">
-               <i class="fas fa-train-tram" style="color: ${busColor};"></i>
-               <span class="bus-number">${bus.trip.route_short_name}</span>
-	       </div>
-               `,
+			   <div class="bus-marker" style="border: 3px solid ${busColor};">
+			       <i class="fas fa-train-tram" style="color: ${busColor};"></i>
+			       <span class="bus-number">${bus.trip.route_short_name}</span>
+			   </div>
+		       `,
 		       className: 'custom-bus-icon',
 		       iconSize: [40, 40],
 		       iconAnchor: [20, 20]
@@ -521,11 +677,11 @@
 	       else {
 		   busIcon = L.divIcon({
 		       html: `
-	       <div class="bus-marker" style="border: 3px solid ${busColor};">
-               <i class="fas fa-bus" style="color: ${busColor};"></i>
-               <span class="bus-number">${bus.trip.route_short_name}</span>
-	       </div>
-               `,
+			   <div class="bus-marker" style="border: 3px solid ${busColor};">
+			       <i class="fas fa-bus" style="color: ${busColor};"></i>
+			       <span class="bus-number">${bus.trip.route_short_name}</span>
+			   </div>
+		       `,
 		       className: 'custom-bus-icon',
 		       iconSize: [40, 40],
 		       iconAnchor: [20, 20]
@@ -541,8 +697,9 @@
                } else {
                    // Ajout d'un nouveau marqueur
                    busMarkers[vehicleId] = L.marker([latitude, longitude], { icon: busIcon}).addTo(map)
-		                            .bindTooltip(`<i class="fas fa-arrow-right"></i> <b>${endPoint}</b> <br> ${filterStopTime}`, { permanent: tooltip_permanent, direction: "top" })
-			       .bindPopup(popupContent);
+		   //.bindTooltip(`<i class="fas fa-arrow-right"></i> <b>${endPoint}</b> <br> ${filterStopTime} <br> ${alertDescription}`, { permanent: tooltip_permanent, direction: "top" })
+					    .bindTooltip(`<i class="fas fa-arrow-right"></i> <b>${endPoint}</b> <br> ${filterStopTime}`, { permanent: tooltip_permanent, direction: "top" })
+					    .bindPopup(popupContent);
                }
 
            });
@@ -557,18 +714,18 @@
 
 
 
-   async function loadGTFSProtobuf() {
-    try {
-        const response = await fetch(RT_API_URL);
-        const buffer = await response.arrayBuffer();
-        const root = await protobuf.load("data/gtfs-realtime.proto");  // Charger le .proto
-        const FeedMessage = root.lookupType("transit_realtime.FeedMessage");
-        const message = FeedMessage.decode(new Uint8Array(buffer));
-        //console.log("GTFS Data in load:", FeedMessage.toObject(message));
-        return FeedMessage.toObject(message);
-    } catch (error) {
-        console.error("Erreur lors du chargement du GTFS Protobuf :", error);
-    }
+   async function loadGTFSProtobuf(url) {
+       try {
+           const response = await fetch(url);
+           const buffer = await response.arrayBuffer();
+           const root = await protobuf.load("data/gtfs-realtime.proto");  // Charger le .proto
+           const FeedMessage = root.lookupType("transit_realtime.FeedMessage");
+           const message = FeedMessage.decode(new Uint8Array(buffer));
+           //console.log("GTFS Data in load:", FeedMessage.toObject(message));
+           return FeedMessage.toObject(message);
+       } catch (error) {
+           console.error("Erreur lors du chargement du GTFS Protobuf :", error);
+       }
    }
 
    
@@ -581,35 +738,105 @@
        return route ? route.rsn : " ";
    }
 
+   
+   let alertsByRoute = {};
+   let alertsByStop = [];
+   function transformAlertGTFSData(gtfsData) {
+       const entities = gtfsData.entity;
+
+       //go through all entities (alerts)
+       entities.forEach(entity => {
+	   const alert = entity.alert;
+	   if (!alert || !Array.isArray(alert.informedEntity)) return;
+
+	   // French description if available
+	   const description = alert.descriptionText?.translation?.find(t => t.language === 'fr-be')?.text 
+			    || alert.descriptionText?.translation?.[0]?.text 
+			    || '';
+
+	   // When does the alert applies
+	   let startDate = ' ';
+	   let endDate = ' ';
+	   if (alert.activePeriod) {
+	       startDate = timestampToDate(alert.activePeriod[0].start);
+	       endDate = timestampToDate(alert.activePeriod[0].end);
+	   }
+
+	   const alertInfo = {
+	       id: entity.id,
+	       description,
+	       start: startDate,
+	       end: endDate,
+	       stops: [],
+	       //raw: alert  // raw alert data 
+	   };
+
+	   //first loop to add concerned stops in alertInfo array
+	   alert.informedEntity.forEach(info => {
+	       const { stopId } = info;
+	       if (!alertInfo.stops.includes(stopId)) {
+		   alertInfo.stops.push(stopId);
+	       }
+	   });
+	   
+	   //second loop (not optimized) for adding alerts in indexing structures
+	   alert.informedEntity.forEach(info => {
+	       const { routeId, stopId } = info;
+
+	       // Indexation par route
+	       if (routeId) {
+		   //console.log(routeId);
+		   if (!alertsByRoute[routeId]) alertsByRoute[routeId] = [];
+		   if (!alertsByRoute[routeId].some(a => a.id === alertInfo.id)) {
+		       alertsByRoute[routeId].push(alertInfo);
+		   }
+	       }
+	       // Indexation par arrêt // not needed anymore ?
+	       if (stopId) {
+		   if (!alertsByStop[stopId]) alertsByStop[stopId] = [];
+		   if (!alertsByStop[stopId].some(a => a.id === alertInfo.id)) {
+		       alertsByStop[stopId].push(alertInfo);
+		   }
+	       }
+	   });
+       });
+   }
+
    function transformVehicleGTFSData(gtfsData) {
        return {
-        vehicles: gtfsData.entity.map(entity => ({
-            vehicleId: entity.vehicle?.id || entity.id, // Certains objets semblent avoir vehicle.id, d'autres non
-		latitude: entity.vehicle.position?.latitude || null,
-		longitude: entity.vehicle.position?.longitude || null,
-		speed: entity.vehicle.position?.speed || null,
-		currentStopSequence: entity.vehicle.currentStopSequence || null,
-		timestamp: entity.vehicle.timestamp || null,
-		stopId: entity.vehicle.stopId || null,
-		trip: entity.vehicle.trip ? {
-                    tripId: entity.vehicle.trip.tripId || null,
-                    startTime: entity.vehicle.trip.startTime || null,
-                    startDate: entity.vehicle.trip.startDate || null,
-                    routeId: entity.vehicle.trip.routeId || null,
-		    route_short_name: getRouteShortName(entity.vehicle.trip.routeId) || null,
-		    route_long_name: getRouteLongName(entity.vehicle.trip.routeId) || null,
-		} : null,
-	    agency: entity.vehicle.trip?.routeId?.split("-")[0] || null // Déduire l'agence depuis l'ID de la route
-        }))
+           vehicles: gtfsData.entity.map(entity => ({
+               vehicleId: entity.vehicle?.id || entity.id, // Certains objets semblent avoir vehicle.id, d'autres non
+	       latitude: entity.vehicle.position?.latitude || null,
+	       longitude: entity.vehicle.position?.longitude || null,
+	       speed: entity.vehicle.position?.speed || null,
+	       currentStopSequence: entity.vehicle.currentStopSequence || null,
+	       timestamp: entity.vehicle.timestamp || null,
+	       stopId: entity.vehicle.stopId || null,
+	       trip: entity.vehicle.trip ? {
+                   tripId: entity.vehicle.trip.tripId || null,
+                   startTime: entity.vehicle.trip.startTime || null,
+                   startDate: entity.vehicle.trip.startDate || null,
+                   routeId: entity.vehicle.trip.routeId || null,
+		   route_short_name: getRouteShortName(entity.vehicle.trip.routeId) || null,
+		   route_long_name: getRouteLongName(entity.vehicle.trip.routeId) || null,
+	       } : null,
+	       agency: entity.vehicle.trip?.routeId?.split("-")[0] || null // Déduire l'agence depuis l'ID de la route
+           }))
        };
    }
 
 
    // Rafraîchir toutes les RT_REFRESH_RATE secondes
    let first = 1;
+
+   fetchRealTimeAlertData(); //fetch alerts only once in the session
    fetchRealTimeBusData();
    setInterval(fetchRealTimeBusData, RT_REFRESH_RATE);
 
+   document.getElementById('close-alerts-btn').addEventListener('click', () => {
+       document.getElementById('alerts-panel').classList.remove('open');
+   });
+   
    
 
   </script>
