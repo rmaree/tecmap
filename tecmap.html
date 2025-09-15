@@ -268,7 +268,7 @@
 	   scriptFile = "data/stop_times-MER.js";
        }
 
-       console.log(scriptFile);
+       //console.log(scriptFile);
        // Créer et insérer dynamiquement un script
        const script = document.createElement("script");
        script.src = scriptFile;
@@ -530,7 +530,7 @@
 
    async function loadGTFSAlertData() {
        gtfsAlertData = await loadGTFSProtobuf(RT_ALERT_API_URL);
-       console.log("Données Alerts chargées :", gtfsAlertData);
+       //console.log("Données Alerts chargées :", gtfsAlertData);
    }
 
 
@@ -552,14 +552,50 @@
        });
    }
 
+
+   //function to create a specific vehicle icon based on vehicle type and color for delays
+   function makeVehicleIcon(bus, busColor) {
+       const route = bus.trip.route_short_name;
+
+       const icons = {
+	   "tram": "fas fa-train-tram",     // Tram
+	   "metro": "fas fa-train-subway",    // Métro
+	   "default": "fas fa-bus"        // Bus normal
+       };
+
+       // Choix de l’icône
+       let iconClass = icons.default;
+       if (route === "T1") { //T1 in Liege
+	   iconClass = icons.tram;
+       } else if (["M1","M2","M3","M4","M5"].includes(route)) {  // in Charleroi
+	   iconClass = icons.metro;
+       }
+
+       // Numero en italique si bus express (E...)
+       const numberStyle = route.startsWith("E") ? "font-style: italic;" : "";
+
+       return L.divIcon({
+	   html: `
+	       <div class="bus-marker" style="border: 3px solid ${busColor};">
+		   <i class="${iconClass}" style="color: ${busColor};"></i>
+		   <span class="bus-number" style="${numberStyle}">${route}</span>
+	       </div>
+	   `,
+	   className: 'custom-bus-icon',
+	   iconSize: [40, 40],
+	   iconAnchor: [20, 20]
+       });
+   }
+
+
    async function fetchRealTimeAlertData() {
-       console.log("Fetching alerts once for this session");
+       //console.log("Fetching alerts once for this session");
        await loadGTFSAlertData();
        transformAlertGTFSData(gtfsAlertData);
-       console.log(alertsByRoute);
-       console.log(alertsByStop);
+       //console.log(alertsByRoute);
+       //console.log(alertsByStop);
    }
-   
+
    // ---------------------------------------------------------------------------------------------
    // Fonction principale pour récupérer les donnees temps reel et afficher les marqueurs des bus sur la carte
    async function fetchRealTimeBusData(update=1) { // by default this function will update gtfs remote data
@@ -613,11 +649,10 @@
 	       const startPoint = getStartPoint(bus.trip.tripId);
 	       const endPoint = getEndPoint(bus.trip.tripId);
 	       
-	       //Bus icon color can be either based on delay, or on bus speed.
+	       //Compute delay based on static schedule 
 	       const schedule = horairesData[bus.trip.tripId];
 	       const delay = schedule ? estimateDelay(schedule,bus.currentStopSequence,bus.timestamp) : 0;
-	       const busColor = getBusDelayColor(delay);
-
+	       
 	       const filterStop = filterLineStops[bus.trip.route_short_name];
 	       let filterStopTime = "";
 	       if (filterStop) {
@@ -646,54 +681,20 @@ ${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts
                <div id="schedule-${bus.trip.tripId}"></div>
                `;
 
-	       busIcon = null;
-	       // Définition de l'icône avec couleur dynamique en fonction de la vitesse
-	       if (bus.trip.route_short_name === "T1") { //specific to Liege tram, not yet available
-		   busIcon = L.divIcon({
-		       html: `
-			   <div class="bus-marker" style="border: 3px solid ${busColor};">
-			       <i class="fas fa-train-tram" style="color: ${busColor};"></i>
-			       <span class="bus-number">${bus.trip.route_short_name}</span>
-			   </div>
-		       `,
-		       className: 'custom-bus-icon',
-		       iconSize: [40, 40],
-		       iconAnchor: [20, 20]
-		   });
-	       }
-	       else {
-		   busIcon = L.divIcon({
-		       html: `
-			   <div class="bus-marker" style="border: 3px solid ${busColor};">
-			       <i class="fas fa-bus" style="color: ${busColor};"></i>
-			       <span class="bus-number">${bus.trip.route_short_name}</span>
-			   </div>
-		       `,
-		       className: 'custom-bus-icon',
-		       iconSize: [40, 40],
-		       iconAnchor: [20, 20]
-		   });
-	       }
+	       // Définition de l'icône en fonction du type de vehicle et avec couleur dynamique en fonction du delay
+	       const busColor = getBusDelayColor(delay);
+	       const busIcon = makeVehicleIcon(bus, busColor);
 	       
-
-               if (busMarkers[vehicleId]) {
-                   // Mise à jour du marqueur existant // not used anymore since we delete busmarkers?
-                   busMarkers[vehicleId].setLatLng([latitude, longitude])
-					.setPopupContent(popupContent)
-					.setIcon(busIcon);
-               } else {
-                   // Ajout d'un nouveau marqueur
-                   busMarkers[vehicleId] = L.marker([latitude, longitude], { icon: busIcon}).addTo(map)
-		   //.bindTooltip(`<i class="fas fa-arrow-right"></i> <b>${endPoint}</b> <br> ${filterStopTime} <br> ${alertDescription}`, { permanent: tooltip_permanent, direction: "top" })
-					    .bindTooltip(`<i class="fas fa-arrow-right"></i> <b>${endPoint}</b> <br> ${filterStopTime}`, { permanent: tooltip_permanent, direction: "top" })
-					    .bindPopup(popupContent);
-               }
-
+               // Ajout du marqueur sur la carte pour ce bus
+               busMarkers[vehicleId] = L.marker([latitude, longitude], { icon: busIcon}).addTo(map)
+					.bindTooltip(`<i class="fas fa-arrow-right"></i> <b>${endPoint}</b> <br> ${filterStopTime}`, { permanent: tooltip_permanent, direction: "top" })
+					.bindPopup(popupContent);
            });
 	   //update the number of visible bus in map view
 	   let bounds = map.getBounds();
 	   let visibleBuses = busMarkers.filter(marker => bounds.contains(marker.getLatLng()));
 	   document.getElementById('busCount').textContent = visibleBuses.length;
+	   
        } catch (error) {
            console.error("Erreur lors du chargement des données distantes:", error);
        }
