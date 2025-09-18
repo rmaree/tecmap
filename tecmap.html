@@ -12,7 +12,7 @@
     
     <script src="config.js"></script>  <!-- load configuration variables -->
 
-    <link rel="icon" href="/icons/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="icon.ico" type="image/x-icon">
 
     <link rel="icon" type="image/x-icon" href="icon.ico">
     <!-- Android -->
@@ -117,7 +117,7 @@
 
 
      /* Styles related to alert panel */
-     #alerts-panel {
+     #side-panel {
 	 position: fixed;
 	 right: -400px;
 	 top: 0;
@@ -131,11 +131,11 @@
 	 flex-direction: column;
      }
 
-     #alerts-panel.open {
+     #side-panel.open {
 	 right: 0;
      }
 
-     #alerts-panel .header {
+     #side-panel .header {
 	 display: flex;
 	 /* justify-content: space-between; */
 	 align-items: left;
@@ -145,7 +145,7 @@
 	 border-bottom: 1px solid #ccc;
      }
 
-     #alerts-content {
+     #side-content {
 	 padding: 1em;
 	 overflow-y: auto;
 	 flex: 1;
@@ -158,7 +158,7 @@
 	 background-color: #fdf0f0;
      }
 
-     #open-alerts-btn-popup {
+     #open-side-btn-popup {
 	 position: left;
 	 /*bottom: 3em;*/
 	 /*right: 1em;*/
@@ -171,6 +171,45 @@
 	 cursor: pointer;
      }
 
+
+     .bus-schedule {
+	 list-style: none;
+	 margin: 0;
+	 padding-left: 15px; /* marge pour aérer à gauche */
+     }
+
+     .bus-schedule li::before {
+	 position: absolute;
+	 left: -20px;
+	 color: #0078ff;
+     }
+     
+     
+     #open-alert-btn-popup {
+	 position: left;
+	 /*bottom: 3em;*/
+	 /*right: 1em;*/
+	 /*padding: 0.5em 1em;*/
+	 background: #d9534f;
+	 color: #fff;
+	 border: none;
+	 border-radius: 4px;
+	 z-index: 1001;
+	 cursor: pointer;
+     }
+
+
+     #open-schedule-btn-popup {
+	 position: left;
+	 background: #009900;
+	 color: #fff;
+	 border: none;
+	 border-radius: 4px;
+	 z-index: 1001;
+	 cursor: pointer;
+     }
+
+     
     </style>
 </head>
 <body>
@@ -187,12 +226,12 @@
 
 
   <!-- Panneau latéral Alertes -->
-  <div id="alerts-panel">
+  <div id="side-panel">
       <div class="header">
-	  <span id="alerts-title">Alertes</span>
-	  <button id="close-alerts-btn">✖</button>
+	  <span id="side-title">Alertes</span>
+	  <button id="close-side-btn">❌</button>
       </div>
-      <div id="alerts-content">
+      <div id="side-content">
 	  <!-- Alertes seront affichées ici dynamiquement -->
       </div>
   </div>
@@ -206,11 +245,11 @@
 
 
    
-   //fill the Alert panel with data related to the routeId
+   //fill the side panel with alert data related to the routeId
    function setAlertsForRoute(routeId) {
-       const panel = document.getElementById('alerts-panel');
-       const content = document.getElementById('alerts-content');
-       const title = document.getElementById('alerts-title');
+       const panel = document.getElementById('side-panel');
+       const content = document.getElementById('side-content');
+       const title = document.getElementById('side-title');
        //console.log(routeId);
        content.innerHTML = '';
        title.textContent = `Alertes ligne ${routeId}`;
@@ -243,6 +282,45 @@
        }
        panel.classList.add('open');
    }
+
+   //fill the side panel with schedule data related to the tripId
+   function setScheduleForTrip(routeId,tripId, currentStopSequence, nextStopId, delay, filterStop) {
+       const panel = document.getElementById('side-panel');
+       const content = document.getElementById('side-content');
+       const title = document.getElementById('side-title');
+       content.innerHTML = '';
+       title.textContent = `Horaire de ce bus ligne ${routeId}`;
+
+       // Récupérer les horaires de ce trajet a partir des donnees horaires theoriques
+       const schedule = horairesData[tripId];  // variable definie dans le .js chargé
+
+       if (!schedule) {
+	   content.innerHTML = '<p>Aucun horaire trouvé.</p>';
+       }
+       else {
+	   const stringdelay = delay > 0 ? '(+'+delay+')' : '';
+       
+	   let innerHTML = '<br>Horaire estimé de ce bus aux prochains arrêts:<br><br> <ul class="bus-schedule">';
+	   schedule.slice(currentStopSequence-1,schedule.length).forEach(entry => {  // we slice the schedule to only keep next stops in the popup for lisibility
+	       const stopName = getStopName(entry.s,stopsData);
+	       const isNextStop = entry.s === nextStopId;
+	       // entry.a = arrival_time
+	       if (isNextStop || stopName.toLowerCase().includes(filterStop.toLowerCase()))
+		   innerHTML += `<li ${(isNextStop || filterStop) ? 'style="font-weight: bold; "' : ''}>
+           ${entry.a.slice(0, 5)} <span style="color: red;"> ${stringdelay} </span> - ${stopName} 
+           </li>`;
+	       else
+		   innerHTML += `<li ${isNextStop ? 'style="font-weight: bold; "' : ''}>
+           ${entry.a.slice(0, 5)} - ${stopName} 
+         </li>`;
+	   });
+	   innerHTML += "</ul>";
+	   content.innerHTML += innerHTML;
+       }
+       panel.classList.add('open');
+   }
+   
+
    
    // Fonction pour calculer le numéro de la semaine actuelle (ISO 8601)
    function getISOWeekNumber(date = new Date()) {
@@ -320,8 +398,8 @@
    }
 
    var map = L.map('map', {
-       center: defaultCoords,//[39.73, -104.99],
-       zoom: 16,
+       center: defaultCoords,
+       zoom: 14,
        layers: defaultLayer
    });
 
@@ -378,7 +456,7 @@
    }
 
    
-   // Détermine la couleur de l'icône du bus en fonction de la vitesse
+   // Détermine la couleur de l'icône du bus en fonction de la vitesse (not used anymore)
    function getBusSpeedColor(speed) {
        if (speed === null) return "grey";
        else if (speed < 10) return "black";
@@ -426,7 +504,6 @@
    }
    
 
-   
    // Calcule le retard d'un bus etant donnee le trajet theorique (schedule), le prochain arrêt, et le timestamp temps reel
    // TO DO: could use real-time delays from dynamic data
    function estimateDelay(schedule,currentStopSequence,timestamp) {
@@ -449,55 +526,6 @@
        if (schedule)
 	   return getStopName(schedule[(schedule.length)-1].s,stopsData)  // s = stopId
        else return " "
-   }
-
-   // Genere l'HTML de l'horaire de ce trip avec affichage du retard
-   function showSchedule(tripId, startTime, currentStopSequence, nextStopId, timestamp, delay, filterStop, element) {
-       //console.log("Arguments:", Array.from(arguments));
-       const scheduleDiv = document.getElementById(`schedule-${tripId}`);
-       if (scheduleDiv.innerHTML) {
-           scheduleDiv.innerHTML = ""; // Masque l'horaire si déjà affiché
-           element.closest(".leaflet-popup").style.width = ""; // Réinitialiser la largeur
-           return;
-       }
-       // Simuler un chargement (optionnel)
-       scheduleDiv.innerHTML = "Chargement...";
-
-       // Récupérer les horaires de ce trajet a partir des donnees horaires theoriques
-       const schedule = horairesData[tripId];  // variable definie dans le .js chargé
-       
-       if (!schedule) {
-           scheduleDiv.innerHTML = "<span>Aucun horaire trouvé.</span>";
-           return;
-       }
-
-       const stringdelay = delay > 0 ? '(+'+delay+')' : '';
-       // Construire l'affichage des horaires
-       let scheduleHtml = "<ul>";
-       //scheduleHtml += `Delta estimé: ${estimate `;
-       schedule.slice(currentStopSequence-1,schedule.length).forEach(entry => {  // we slice the schedule to only keep next stops in the popup for lisibility
-	   const stopName = getStopName(entry.s,stopsData);
-	   const isNextStop = entry.s === nextStopId;
-	   // entry.a = arrival_time
-	   if (isNextStop || stopName.toLowerCase().includes(filterStop.toLowerCase()))
-	       scheduleHtml += `<li ${(isNextStop || filterStop) ? 'style="font-weight: bold; "' : ''}>
-           ${entry.a.slice(0, 5)} <span style="color: red;"> ${stringdelay} </span> - ${stopName} 
-           </li>`;
-	   else
-	       scheduleHtml += `<li ${isNextStop ? 'style="font-weight: bold; "' : ''}>
-           ${entry.a.slice(0, 5)} - ${stopName} 
-         </li>`;
-       });
-       scheduleHtml += "</ul>";
-       
-       scheduleDiv.innerHTML = scheduleHtml;
-
-       // ajuster largeur popup
-       const popup = element.closest(".leaflet-popup");
-       if (popup) {
-           popup.style.width = Math.min(500, scheduleDiv.scrollWidth + 50) + "px"; 
-       }
-
    }
 
    //Extract sheduled time at precise stop
@@ -670,15 +698,14 @@
 	       
                const popupContent = `
          <b>Ligne ${trip.route_short_name}</b> ${trip.route_long_name} <br>
-${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts+'\')"> <button id="open-alerts-btn-popup">📢 Alertes ('+alerts.length+')</button></a><br>': ""}
+${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts+'\')"> <button id="open-alert-btn-popup">📢 Voir les alertes sur cette ligne ('+alerts.length+')</button></a><br>': ""}
          De: ${startPoint} <br>
          Vers: <i class="fas fa-arrow-right"></i> ${endPoint} <br>
          <!-- 🚌 Bus ID: ${vehicleId} <br> //-->
          <i class="fas fa-map-marker-alt"></i> Position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} <br>
          <i class="fas fa-tachometer-alt"></i> Vitesse: ${speed ? speed + " km/h" : "N/A"} <br>
-         <i class="fas fa-bus"></i> Prochain arrêt: ${nextStopName} ${delay>0 ? '<span style="color:red;">+'+delay+'</span>': ""}<br>
-         <a href="#" onclick="showSchedule('${bus.trip.tripId}','${bus.trip.startTime}', '${bus.currentStopSequence}', '${bus.stopId}', '${bus.timestamp}', '${delay}', '${filterStop}', this)">Voir l'horaire</a>
-               <div id="schedule-${bus.trip.tripId}"></div>
+         <i class="fas fa-bus"></i> Prochain arrêt: ${nextStopName} ${delay>0 ? '<span style="color:red; font-weight: bold;">+'+delay+'</span>': ""}<br>
+         <a href="#" onclick="setScheduleForTrip('${routeIdForAlerts}','${bus.trip.tripId}', '${bus.currentStopSequence}', '${bus.stopId}', '${delay}', '${filterStop}')"><button id="open-schedule-btn-popup">🕔 Voir l'horaire temps-réel de ce bus</button></a><br>
                `;
 
 	       // Définition de l'icône en fonction du type de vehicle et avec couleur dynamique en fonction du delay
@@ -821,8 +848,8 @@ ${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts
    fetchRealTimeBusData();
    setInterval(fetchRealTimeBusData, RT_REFRESH_RATE);
 
-   document.getElementById('close-alerts-btn').addEventListener('click', () => {
-       document.getElementById('alerts-panel').classList.remove('open');
+   document.getElementById('close-side-btn').addEventListener('click', () => {
+       document.getElementById('side-panel').classList.remove('open');
    });
    
    
