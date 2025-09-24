@@ -199,17 +199,6 @@
      }
 
 
-     #open-schedule-btn-popup {
-	 position: left;
-	 background: #009900;
-	 color: #fff;
-	 border: none;
-	 border-radius: 4px;
-	 z-index: 1001;
-	 cursor: pointer;
-     }
-
-     
     </style>
 </head>
 <body>
@@ -294,6 +283,9 @@
        // Récupérer les horaires de ce trajet a partir des donnees horaires theoriques
        const schedule = horairesData[tripId];  // variable definie dans le .js chargé
 
+       // Récupérer couleur en fonction delai pour affichage +delay
+       const busColor = getBusDelayColor(delay);
+       
        if (!schedule) {
 	   content.innerHTML = '<p>Aucun horaire trouvé.</p>';
        }
@@ -307,7 +299,7 @@
 	       // entry.a = arrival_time
 	       if (isNextStop || stopName.toLowerCase().includes(filterStop.toLowerCase()))
 		   innerHTML += `<li ${(isNextStop || filterStop) ? 'style="font-weight: bold; "' : ''}>
-           ${entry.a.slice(0, 5)} <span style="color: red;"> ${stringdelay} </span> - ${stopName} 
+           ${entry.a.slice(0, 5)} <span style="color: ${busColor};"> ${stringdelay} </span> - ${stopName} 
            </li>`;
 	       else
 		   innerHTML += `<li ${isNextStop ? 'style="font-weight: bold; "' : ''}>
@@ -632,7 +624,7 @@
 	   if (update) { //when using filter, we don't reload gtfs but apply filter on current data
 	       await loadGTFSVehicleData();
 	       formattedVehicleData = transformVehicleGTFSData(gtfsVehicleData);
-	       //console.log(JSON.stringify(formattedVehicleData, null, 2)); // Affichage formaté en JSON
+	       console.log(JSON.stringify(formattedVehicleData, null, 2)); // Affichage formaté en JSON
 	   }
 	   
 	   // Récupère la valeur du filtre de ligne entré par l'utilisateur.ice
@@ -695,6 +687,10 @@
 	       // Contenu du popup (pourrait n'être créé qu'onclick)
 	       //<b>Ligne ${trip.route_short_name}</b> - ${trip.route_long_name} <br>
 	       //🏁 Démarrage: ${bus.trip.startTime} (il y a ${timeSinceStart} minutes)<br>
+
+	       // Définition de l'icône en fonction du type de vehicle et avec couleur dynamique en fonction du delay
+	       const busColor = getBusDelayColor(delay);
+	       const busIcon = makeVehicleIcon(bus, busColor);
 	       
                const popupContent = `
          <b>Ligne ${trip.route_short_name}</b> ${trip.route_long_name} <br>
@@ -704,16 +700,15 @@ ${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts
          <!-- 🚌 Bus ID: ${vehicleId} <br> //-->
          <i class="fas fa-map-marker-alt"></i> Position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} <br>
          <i class="fas fa-tachometer-alt"></i> Vitesse: ${speed ? speed + " km/h" : "N/A"} <br>
-         <i class="fas fa-bus"></i> Prochain arrêt: ${nextStopName} ${delay>0 ? '<span style="color:red; font-weight: bold;">+'+delay+'</span>': ""}<br>
-         <a href="#" onclick="setScheduleForTrip('${routeIdForAlerts}','${bus.trip.tripId}', '${bus.currentStopSequence}', '${bus.stopId}', '${delay}', '${filterStop}')"><button id="open-schedule-btn-popup">🕔 Voir l'horaire temps-réel de ce bus</button></a><br>
-               `;
+         <i class="fas fa-bus"></i> Prochain arrêt: ${nextStopName} ${delay>0 ? `<span style="color:${busColor}; font-weight: bold;">+${delay}</span>`: ""}<br>
+         <a href="#" onclick="setScheduleForTrip('${routeIdForAlerts}','${bus.trip.tripId}', '${bus.currentStopSequence}', '${bus.stopId}', '${delay}', '${filterStop}')"><button style="background:${busColor}; color:#fff; border:none; border-radius:4px; z-index: 1001; cursor:pointer; position: left">
+	       🕔 Voir l'horaire temps-réel de ce bus
+	       </button></a><br>
+         `;
 
-	       // Définition de l'icône en fonction du type de vehicle et avec couleur dynamique en fonction du delay
-	       const busColor = getBusDelayColor(delay);
-	       const busIcon = makeVehicleIcon(bus, busColor);
 	       
-               // Ajout du marqueur sur la carte pour ce bus
-               busMarkers[vehicleId] = L.marker([latitude, longitude], { icon: busIcon}).addTo(map)
+	       // Ajout du marqueur sur la carte pour ce bus
+	       busMarkers[vehicleId] = L.marker([latitude, longitude], { icon: busIcon}).addTo(map)
 					.bindTooltip(`<i class="fas fa-arrow-right"></i> <b>${endPoint}</b> <br> ${filterStopTime}`, { permanent: tooltip_permanent, direction: "top" })
 					.bindPopup(popupContent);
            });
@@ -822,21 +817,21 @@ ${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts
            vehicles: gtfsData.entity.map(entity => ({
                vehicleId: entity.vehicle?.id || entity.id, // Certains objets semblent avoir vehicle.id, d'autres non
 	       latitude: entity.vehicle.position?.latitude || null,
-	       longitude: entity.vehicle.position?.longitude || null,
-	       speed: entity.vehicle.position?.speed || null,
-	       currentStopSequence: entity.vehicle.currentStopSequence || null,
-	       timestamp: entity.vehicle.timestamp || null,
-	       stopId: entity.vehicle.stopId || null,
-	       trip: entity.vehicle.trip ? {
-                   tripId: entity.vehicle.trip.tripId || null,
-                   startTime: entity.vehicle.trip.startTime || null,
-                   startDate: entity.vehicle.trip.startDate || null,
-                   routeId: entity.vehicle.trip.routeId || null,
-		   route_short_name: getRouteShortName(entity.vehicle.trip.routeId) || null,
-		   route_long_name: getRouteLongName(entity.vehicle.trip.routeId) || null,
-	       } : null,
-	       agency: entity.vehicle.trip?.routeId?.split("-")[0] || null // Déduire l'agence depuis l'ID de la route
-           }))
+		     longitude: entity.vehicle.position?.longitude || null,
+		     speed: entity.vehicle.position?.speed || null,
+		     currentStopSequence: entity.vehicle.currentStopSequence || null,
+		     timestamp: entity.vehicle.timestamp || null,
+		     stopId: entity.vehicle.stopId || null,
+		     trip: entity.vehicle.trip ? {
+			 tripId: entity.vehicle.trip.tripId || null,
+			 startTime: entity.vehicle.trip.startTime || null,
+			 startDate: entity.vehicle.trip.startDate || null,
+			 routeId: entity.vehicle.trip.routeId || null,
+			 route_short_name: getRouteShortName(entity.vehicle.trip.routeId) || null,
+			 route_long_name: getRouteLongName(entity.vehicle.trip.routeId) || null,
+		     } : null,
+		     agency: entity.vehicle.trip?.routeId?.split("-")[0] || null // Déduire l'agence depuis l'ID de la route
+   }))
        };
    }
 
