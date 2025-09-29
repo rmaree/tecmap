@@ -550,7 +550,7 @@
 
    async function loadGTFSAlertData() {
        gtfsAlertData = await loadGTFSProtobuf(RT_ALERT_API_URL);
-       //console.log("Données Alerts chargées :", gtfsAlertData);
+       console.log("Données Alerts chargées :", gtfsAlertData);
    }
 
 
@@ -611,6 +611,14 @@
    async function fetchRealTimeAlertData() {
        //console.log("Fetching alerts once for this session");
        await loadGTFSAlertData();
+       //console.log(JSON.stringify(gtfsAlertData, null, 2)); // Affichage formaté en JSON
+       let first=1
+       if (first) { // we wait for horairesData to be loaded on first execution because transformAlerts uses horairesData
+       await waitForHorairesData()
+       .then(data => console.log("horairesData chargé"))
+	       .catch(error => console.error(error.message));
+       }
+       first=0;
        transformAlertGTFSData(gtfsAlertData);
        //console.log(alertsByRoute);
        //console.log(alertsByStop);
@@ -624,7 +632,7 @@
 	   if (update) { //when using filter, we don't reload gtfs but apply filter on current data
 	       await loadGTFSVehicleData();
 	       formattedVehicleData = transformVehicleGTFSData(gtfsVehicleData);
-	       console.log(JSON.stringify(formattedVehicleData, null, 2)); // Affichage formaté en JSON
+	       //console.log(JSON.stringify(formattedVehicleData, null, 2)); // Affichage formaté en JSON
 	   }
 	   
 	   // Récupère la valeur du filtre de ligne entré par l'utilisateur.ice
@@ -706,11 +714,27 @@ ${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts
 	       </button></a><br>
          `;
 
+
+
+	       if (busMarkers[vehicleId]) {
+                   // Mise à jour du marqueur existant // not used anymore since we delete busmarkers?
+		   console.log("update marker bus");
+                   busMarkers[vehicleId].setLatLng([latitude, longitude])
+					.setPopupContent(popupContent)
+					.setIcon(busIcon);
+               } else {
+                   // Ajout d'un nouveau marqueur
+                   busMarkers[vehicleId] = L.marker([latitude, longitude], { icon: busIcon}).addTo(map)
+		                            .bindTooltip(`<i class="fas fa-arrow-right"></i> <b>${endPoint}</b> <br> ${filterStopTime}`, { permanent: tooltip_permanent, direction: "top" })
+			       .bindPopup(popupContent);
+               }
+
 	       
 	       // Ajout du marqueur sur la carte pour ce bus
-	       busMarkers[vehicleId] = L.marker([latitude, longitude], { icon: busIcon}).addTo(map)
-					.bindTooltip(`<i class="fas fa-arrow-right"></i> <b>${endPoint}</b> <br> ${filterStopTime}`, { permanent: tooltip_permanent, direction: "top" })
-					.bindPopup(popupContent);
+	       //busMarkers[vehicleId] = L.marker([latitude, longitude], { icon: busIcon}).addTo(map)
+		//			.bindTooltip(`<i class="fas fa-arrow-right"></i> <b>${endPoint}</b> <br> ${filterStopTime}`, { permanent: tooltip_permanent, direction: "top" })
+	       //			.bindPopup(popupContent);
+	       
            });
 	   //update the number of visible bus in map view
 	   let bounds = map.getBounds();
@@ -760,7 +784,7 @@ ${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts
 	   if (!alert || !Array.isArray(alert.informedEntity)) return;
 
 	   // French description if available
-	   const description = alert.descriptionText?.translation?.find(t => t.language === 'fr-be')?.text 
+	   let description = alert.descriptionText?.translation?.find(t => t.language === 'fr-be')?.text 
 			    || alert.descriptionText?.translation?.[0]?.text 
 			    || '';
 
@@ -772,14 +796,25 @@ ${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts
 	       endDate = timestampToDate(alert.activePeriod[0].end);
 	   }
 
+	   //extract and convert info from informedEntity for precise cancellation information
+	   let additionalInfo = ' ';
+	   if (alert.informedEntity){
+	       const tripInfo = alert.informedEntity[0].trip;
+	       if (tripInfo && tripInfo.tripId) {
+		   //additionalInfo = "\n Bus de "+tripInfo.startTime+" annulé"; // no AM/PM info in informedEntity startTime so we use horairesData
+		   additionalInfo = "\n\n Bus démarrant de "+getStartPoint(tripInfo.tripId)+" à "+horairesData[tripInfo.tripId][0].a+" annulé";
+		   description = additionalInfo;
+	       }
+	   }
+	   
 	   const alertInfo = {
-	       id: entity.id,
-	       description,
-	       start: startDate,
-	       end: endDate,
-	       stops: [],
-	       //raw: alert  // raw alert data 
-	   };
+		   id: entity.id,
+		   description,
+		   start: startDate,
+		   end: endDate,
+		   stops: [],
+		   //raw: alert  // raw alert data 
+	       };
 
 	   //first loop to add concerned stops in alertInfo array
 	   alert.informedEntity.forEach(info => {
@@ -836,11 +871,10 @@ ${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts
    }
 
 
-   // Rafraîchir toutes les RT_REFRESH_RATE secondes
-   let first = 1;
-
-   fetchRealTimeAlertData(); //fetch alerts only once in the session
+   let first=1;
    fetchRealTimeBusData();
+   fetchRealTimeAlertData(); //fetch alerts only once in the session
+   // Rafraîchir toutes les RT_REFRESH_RATE secondes
    setInterval(fetchRealTimeBusData, RT_REFRESH_RATE);
 
    document.getElementById('close-side-btn').addEventListener('click', () => {
