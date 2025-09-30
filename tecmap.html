@@ -207,7 +207,7 @@
   <div id="filter-container" style="position: absolute; top: 10px; left: 50px; background: white; padding: 5px; z-index: 1000;">
     <div style="display: flex; align-items: center; gap: 5px;">
 	  <input type="text" id="busFilter" placeholder="Filtrer par ligne de bus" oninput="fetchRealTimeBusData(0)">  <!-- we filter without gtfs data update -->
-	  <span><a href="https://busmaps.com/en/feedinfo/belgium/TEC-Transit/tec-transit/routes">?</a></span>
+	  <span><a href="https://busmaps.com/en/feedinfo/belgium/TEC-Transit/tec-transit/routes"> ⏱ </a></span>
 	  <button onclick="clearFilter()">❌</button>
       </div>
       <p style="margin: 0;">Nombre de bus visibles: <span id="busCount">0</span></p>
@@ -218,6 +218,7 @@
   <div id="side-panel">
       <div class="header">
 	  <span id="side-title">Alertes</span>
+	  <span><a href="https://busmaps.com/en/feedinfo/belgium/TEC-Transit/tec-transit/routes">   ⏱    </a></span>
 	  <button id="close-side-btn">❌</button>
       </div>
       <div id="side-content">
@@ -233,6 +234,53 @@
    let busMarkers = {};  // Marqueurs des bus
 
 
+
+   function parseDate(dateStr, timeStr = "00:00") {
+       const [day, month, year] = dateStr.split(" ")[0].split("/");
+       return new Date(`${year}-${month}-${day}T${timeStr}`);
+   }
+
+   function sortCleanAlerts(alerts) {
+       const now = new Date();
+
+       // First we filter old alerts related to cancellations when now is > endtime of a trip
+       const futureAlerts = alerts.filter(alert => {
+	   if (alert.starttime && alert.tripid && horairesData[alert.tripid]) {
+	       const stops = horairesData[alert.tripid];
+	       const lastStop = stops[stops.length - 1];
+	       if (lastStop && lastStop.a) {
+		   const endOfTrip = parseDate(alert.start, lastStop.a);
+		   return endOfTrip >= now; // we keep it if trip not theoritically ended
+	       }
+	   }
+	   if (alert.starttime) {
+	       // fallback if no tripId was found in horairesData
+	       const alertDate = parseDate(alert.start, alert.starttime);
+	       return alertDate >= now;
+	   }
+	   // keep other alerts without sansstarttime (stop moves, general info)
+	   return true;
+       });
+
+       // Sorting
+       return futureAlerts.sort((a, b) => {
+	   // Case 1 : both have starttime
+	   if (a.starttime && b.starttime) {
+	       const dateA = parseDate(a.start, a.starttime);
+	       const dateB = parseDate(b.start, b.starttime);
+	       return dateA - dateB;
+	   }
+	   // Case 2 : only one has starttime, it goes first
+	   if (a.starttime && !b.starttime) return -1;
+	   if (!a.starttime && b.starttime) return 1;
+
+	   // Case 3 : none has starttime -> sort using start date
+	   const dateA = parseDate(a.start);
+	   const dateB = parseDate(b.start);
+	   return dateA - dateB;
+       });
+   }
+
    
    //fill the side panel with alert data related to the routeId
    function setAlertsForRoute(routeId) {
@@ -244,12 +292,14 @@
        title.textContent = `Alertes ligne ${routeId}`;
 
        const alerts = alertsByRoute[routeId] || [];
+       //we sort and clean alerts each time the panel is open
+       const sorted_alerts = sortCleanAlerts(alerts);
 
        if (alerts.length === 0) {
 	   content.innerHTML = '<p>Aucune alerte active.</p>';
        } else {
 	   let stopNames = ' ';
-	   alerts.forEach(alert => {
+	   sorted_alerts.forEach(alert => {
 	       stopNames = alert.stops.map(stopId => getStopName(stopId,stopsData)).join(', ');
 	       const div = document.createElement('div');
 	       div.className = 'alert';
@@ -272,13 +322,18 @@
        panel.classList.add('open');
    }
 
+
    //fill the side panel with schedule data related to the tripId
    function setScheduleForTrip(routeId,tripId, currentStopSequence, nextStopId, delay, filterStop) {
        const panel = document.getElementById('side-panel');
        const content = document.getElementById('side-content');
        const title = document.getElementById('side-title');
        content.innerHTML = '';
-       title.textContent = `Horaire de ce bus ligne ${routeId}`;
+       const operator = "TEC"
+       title.textContent = `Horaire de ce bus ligne ${routeId}  `; 
+       
+       
+       
 
        // Récupérer les horaires de ce trajet a partir des donnees horaires theoriques
        const schedule = horairesData[tripId];  // variable definie dans le .js chargé
@@ -550,7 +605,7 @@
 
    async function loadGTFSAlertData() {
        gtfsAlertData = await loadGTFSProtobuf(RT_ALERT_API_URL);
-       console.log("Données Alerts chargées :", gtfsAlertData);
+       //console.log("Données Alerts chargées :", gtfsAlertData);
    }
 
 
@@ -620,8 +675,6 @@
        }
        first=0;
        transformAlertGTFSData(gtfsAlertData);
-       //console.log(alertsByRoute);
-       //console.log(alertsByStop);
    }
 
    // ---------------------------------------------------------------------------------------------
@@ -691,11 +744,6 @@
 	       const routeIdForAlerts = bus.trip.routeId.split("-")[0]; //alerts are stored using simplified id
 	       const alerts = alertsByRoute[routeIdForAlerts] || [];
 	       
-	       //<b>Ligne ${trip.route_short_name}</b> ${trip.route_long_name} <br>
-	       // Contenu du popup (pourrait n'être créé qu'onclick)
-	       //<b>Ligne ${trip.route_short_name}</b> - ${trip.route_long_name} <br>
-	       //🏁 Démarrage: ${bus.trip.startTime} (il y a ${timeSinceStart} minutes)<br>
-
 	       // Définition de l'icône en fonction du type de vehicle et avec couleur dynamique en fonction du delay
 	       const busColor = getBusDelayColor(delay);
 	       const busIcon = makeVehicleIcon(bus, busColor);
@@ -798,23 +846,34 @@ ${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts
 
 	   //extract and convert info from informedEntity for precise cancellation information
 	   let additionalInfo = ' ';
+	   let starttime = null;
+	   let tripid=null;
 	   if (alert.informedEntity){
 	       const tripInfo = alert.informedEntity[0].trip;
 	       if (tripInfo && tripInfo.tripId) {
-		   //additionalInfo = "\n Bus de "+tripInfo.startTime+" annulé"; // no AM/PM info in informedEntity startTime so we use horairesData
-		   additionalInfo = "\n\n Bus démarrant de "+getStartPoint(tripInfo.tripId)+" à "+horairesData[tripInfo.tripId][0].a+" annulé";
+		   tripid = tripInfo.tripId;
+		   // no AM/PM info in informedEntity startTime so we preferrably use horairesData[][0] startTime
+		   if (horairesData[tripInfo.tripId]) {
+		       starttime=horairesData[tripInfo.tripId][0].a;
+		   }
+		   else { //but we might not have horairesData loaded (e.g. for wednesday when we are tuesday)
+		       starttime=tripInfo.startTime;
+		   }
+		   additionalInfo = "Annulation du bus démarrant de "+getStartPoint(tripInfo.tripId)+" à "+starttime;
 		   description = additionalInfo;
 	       }
 	   }
 	   
 	   const alertInfo = {
-		   id: entity.id,
-		   description,
-		   start: startDate,
-		   end: endDate,
-		   stops: [],
-		   //raw: alert  // raw alert data 
-	       };
+	       id: entity.id,
+	       tripid: tripid,
+	       description,
+	       start: startDate,
+	       end: endDate,
+	       starttime: starttime,
+	       stops: [],
+	       //raw: alert  // raw alert data 
+	   };
 
 	   //first loop to add concerned stops in alertInfo array
 	   alert.informedEntity.forEach(info => {
