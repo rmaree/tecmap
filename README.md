@@ -8,10 +8,10 @@ A simple filter (by bus line numbers) allows to only display the buses of intere
 Alerts (disruptions) can be displayed for each line numbers to know about cancelled trips and stops.
 ![tecmap](tecmap-alerts.jpg?raw=true "Alerts in Tecmap")
 
-The typical use cases include individuals willing to know if their buses are on time to plan their trips, e.g. someone at home who doesn't want to wait 10 minutes outside in the cold, or someone who has the possibility of taking several different buses and wants to know which one will arrive first, or someone at their desk who wants to optimize their life and work until the last minute before their bus comes, or someone having a good time with a loved one but not willing to miss the very last bus ;) or willing to wait in a shady place rather than at the bus stop in direct sunlight. Another use case is someone willing to discover new places they can reach with public transport without knowing the existing routes a priori. Please note no automatic planning is provided, you must use your mental calculation skills to construct your route, which in principle consumes less energy than running a routing algorithm on GAFAM servers. ;)
+The typical use cases include individuals wanting to know if their buses are on time to plan their trips, e.g. someone at home who doesn't want to wait 10 minutes outside in the cold, or someone who has the possibility of taking several different buses and wants to know which one will arrive first, or someone at their desk who wants to optimize their life and work until the last minute before their bus comes, or someone having a good time with a loved one but not wanting to miss the very last bus ;) or wanting to wait in a shady place rather than at the bus stop in direct sunlight. Another use case is someone who wants to discover new places they can reach with public transport without knowing the existing routes a priori. Please note no automatic planning is provided, you must use your mental calculation skills to construct your route, which in principle consumes less energy than running a routing algorithm on GAFAM servers. ;)
 
 ## Tech stack
-tecmap has been developed using HTML+CSS+Javascript only to be run through a single HTML page without any web framework. It relies on transit data locally stored, and real-time data coming from a remote API using ProtoBuf format (for data in Wallonia you have to submit a request to get the data here: [https://www.letec.be/View/Open_Data_of_TEC/4296]).
+tecmap has been developed using HTML+CSS+Javascript only to be run through a single HTML page without any web framework. It relies on transit data locally stored, and real-time data coming from a remote API using ProtoBuf format (for data in Wallonia you have to submit a request to get the data here: [https://www.letec.be/View/Open_Data_of_TEC/4296](https://www.letec.be/View/Open_Data_of_TEC/4296)).
 This has been tested with GTFS static transit data for Wallonia in Belgium (TEC, downloaded from [https://beltac.tec-wl.be](https://beltac.tec-wl.be/))
 including routes and stops, and real-time traffic information assumed to be accessible through an API that returns it in ProtoBuf format.
 
@@ -19,14 +19,14 @@ including routes and stops, and real-time traffic information assumed to be acce
 ## Data preparation
 1. Create `data/` local directory
    
-2. Download into ´data/` local directory GTFS static routes and stops data (latest version from [https://beltac.tec-wl.be](https://beltac.tec-wl.be/Current%20GTFS/) or [https://busmaps.com/en/belgium/TEC-Transit/tec-transit](https://busmaps.com/en/belgium/TEC-Transit/tec-transit) )
+2. Download into `data/` local directory GTFS static routes and stops data (latest version from [https://beltac.tec-wl.be](https://beltac.tec-wl.be/Current%20GTFS/) or [https://busmaps.com/en/belgium/TEC-Transit/tec-transit](https://busmaps.com/en/belgium/TEC-Transit/tec-transit) )
    
 3. Convert GTFS static and dynamic data using `python3 convert_data.py` script:
 
     2.1 static `data/stops.txt` will be converted to `data/stops.js`  (contains names of bus stops)
    
-    2.2 dynamic `data/stop_times.txt` (contains routes with sequences of bus stops and arrival times) will be converted to multiple `data/stop_times.js` files splitted by days using filter_strings 
-   The original data is splitted into multiple .js files using the filter_strings to avoid loading too much data in the browser. In tecmap.html the appropriate js file is loaded on-the-fly according e.g. to the day of the week and holidays (Belgium).
+    2.2 dynamic `data/stop_times.txt` (contains routes with sequences of bus stops and arrival times) will be converted to multiple `data/stop_times.js` files split by days using filter_strings 
+   The original data is split into multiple .js files using the filter_strings to avoid loading too much data in the browser. In tecmap.html the appropriate js file is loaded on-the-fly according e.g. to the day of the week and holidays (Belgium).
 
     2.3 static `data/routes.txt` will be converted to `data/routes.js`  (contains route short and long names)
 
@@ -92,7 +92,7 @@ Please feel free to submit Issues or contact me.
 
 ## Acknowledgments
 The map uses the open access [http://openstreetmap.org/](http://openstreetmap.org/) data and the open-source [https://leafletjs.com/](https://leafletjs.com/) Javascript library.
-We use open data from TEC [https://www.letec.be/] without affiliation to this organization.
+We use open data from [TEC](https://www.letec.be/) without affiliation to this organization.
 
 
 
