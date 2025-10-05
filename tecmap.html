@@ -208,7 +208,7 @@
   <div id="filter-container" style="position: absolute; top: 10px; left: 50px; background: white; padding: 5px; z-index: 1000;">
     <div style="display: flex; align-items: center; gap: 5px;">
 	  <input type="text" id="busFilter" placeholder="Filtrer par ligne de bus" oninput="fetchRealTimeBusData(0)">  <!-- we filter without gtfs data update -->
-	  <span><a href="https://busmaps.com/en/feedinfo/belgium/TEC-Transit/tec-transit/routes"> ⏱ </a></span>
+	  <span><a href="#" onclick="openStaticSchedule()"> ⏱ </a></span>
 	  <button onclick="clearFilter()">❌</button>
       </div>
       <p style="margin: 0;">Nombre de bus visibles: <span id="busCount">0</span></p>
@@ -219,7 +219,7 @@
   <div id="side-panel">
       <div class="header">
 	  <span id="side-title">Alertes</span>
-	  <span><a href="https://busmaps.com/en/feedinfo/belgium/TEC-Transit/tec-transit/routes">   ⏱    </a></span>
+	  <span><a href="#" onclick="openStaticSchedule()">   ⏱    </a></span>
 	  <button id="close-side-btn">❌</button>
       </div>
       <div id="side-content">
@@ -235,6 +235,12 @@
    // ---------------------------------------------------------------------------------------------
    // Fonctions utilitaires
 
+   function openStaticSchedule(routeId, tripId) {
+       const url = "https://busmaps.com/en/feedinfo/belgium/TEC-Transit/tec-transit/routes?type=Bus";
+       //const url = "https://busmaps.com/en/search?q=58&location=XXX"
+       window.open(url, "_blank");
+   }
+   
    // Fonction pour calculer le numéro de la semaine actuelle (ISO 8601)
    function getISOWeekNumber(date = new Date()) {
        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -435,7 +441,7 @@
 	   "default": "fas fa-bus"        // Bus normal
        };
 
-       // Choix de l’icône
+       // Choix de l'icône
        let iconClass = icons.default;
        if (route === "T1") { //T1 in Liege
 	   iconClass = icons.tram;
@@ -560,7 +566,7 @@
    
 
    // ---------------------------------------------------------------------------------------------
-   // Utils functions to load GTFS data
+   // Utils functions to load and transform GTFS data
 
    async function loadGTFSProtobuf(url) {
        try {
@@ -726,7 +732,7 @@
    }
 
 
-      // ---------------------------------------------------------------------------------------------
+   // ---------------------------------------------------------------------------------------------
    // Fonction principale pour récupérer les donnees temps reel et afficher les marqueurs des bus sur la carte
    async function fetchRealTimeBusData(update=1) { // by default this function will update gtfs remote data
        try {
