@@ -219,7 +219,7 @@
   <div id="side-panel">
       <div class="header">
 	  <span id="side-title">Alertes</span>
-	  <span><a href="#" onclick="openStaticSchedule()">   ⏱    </a></span>
+	  <!-- <span><a href="#" onclick="openStaticSchedule()">  ⏱    </a></span> -->
 	  <button id="close-side-btn">❌</button>
       </div>
       <div id="side-content">
@@ -235,9 +235,14 @@
    // ---------------------------------------------------------------------------------------------
    // Fonctions utilitaires
 
-   function openStaticSchedule(routeId, tripId) {
-       const url = "https://busmaps.com/en/feedinfo/belgium/TEC-Transit/tec-transit/routes?type=Bus";
-       //const url = "https://busmaps.com/en/search?q=58&location=XXX"
+   function openStaticSchedule(routeId) {
+       let url = '';
+       if (!routeId) { //link to all routes
+	   url = "https://busmaps.com/en/feedinfo/belgium/TEC-Transit/tec-transit/routes?type=Bus";
+       }
+       else { // search for specific route in area
+	   url = "https://busmaps.com/en/search?q="+routeId+"&location="+map.getCenter().lat+","+map.getCenter().lng
+       }
        window.open(url, "_blank");
    }
    
@@ -402,6 +407,9 @@
 	   innerHTML += "</ul>";
 	   content.innerHTML += innerHTML;
        }
+       content.innerHTML += `<br>
+       <a href="#" onclick="openStaticSchedule('${routeId}')">Horaires théoriques de la ligne ${routeId}</a>
+       `;
        panel.classList.add('open');
    }
    
@@ -811,7 +819,7 @@
          <i class="fas fa-map-marker-alt"></i> Position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} <br>
          <i class="fas fa-tachometer-alt"></i> Vitesse: ${speed ? speed + " km/h" : "N/A"} <br>
          <i class="fas fa-bus"></i> Prochain arrêt: ${nextStopName} ${delay>0 ? `<span style="color:${busColor}; font-weight: bold;">+${delay}</span>`: ""}<br>
-         <a href="#" onclick="setScheduleForTrip('${routeIdForAlerts}','${bus.trip.tripId}', '${bus.currentStopSequence}', '${bus.stopId}', '${delay}', '${filterStop}')"><button style="background:${busColor}; color:#fff; border:none; border-radius:4px; z-index: 1001; cursor:pointer; position: left">
+         <a href="#" onclick="setScheduleForTrip('${trip.route_short_name}','${bus.trip.tripId}', '${bus.currentStopSequence}', '${bus.stopId}', '${delay}', '${filterStop}')"><button style="background:${busColor}; color:#fff; border:none; border-radius:4px; z-index: 1001; cursor:pointer; position: left">
 	       🕔 Voir l'horaire temps-réel de ce bus
 	       </button></a><br>
 ${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts+'\')"> <button id="open-alert-btn-popup">📢 Voir les alertes sur cette ligne ('+alerts.length+')</button></a><br>': ""}
