@@ -47,7 +47,7 @@
     
     
     <style>
-     #map { height: 98vh; }
+     #map { height: 97dvh; padding-bottom: 10px; }
 
      .custom-user-marker {
 	 font-size: 44px;
@@ -892,7 +892,7 @@ ${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts
    // tileLayer from thunderforest can be used using an apikey to be set in config.js file
    if (TILE_API_KEY) {
        var transportTileLayer = L.tileLayer('https://tile.thunderforest.com/transport/{z}/{x}/{y}.png?apikey='+TILE_API_KEY, {
-     	   attribution: 'OpenStreetMap, &copy; <a href="https://www.thunderforest.com/maps/transport/">Thunderforest</a>',
+     	   attribution: '© OpenStreetMap contributors, &copy; <a href="https://www.thunderforest.com/maps/transport/">Thunderforest</a>',
    	   maxZoom: 22
        });
        var cycleMapTileLayer = L.tileLayer('https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey='+TILE_API_KEY, {
