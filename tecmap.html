@@ -394,10 +394,10 @@
 	   schedule.slice(currentStopSequence-1,schedule.length).forEach(entry => {  // we slice the schedule to only keep next stops in the popup for lisibility
 	       const stopName = getStopName(entry.s,stopsData);
 	       const isNextStop = entry.s === nextStopId;
-	       // entry.a = arrival_time
+	       // entry.a is arrival_time
 	       if (isNextStop || stopName.toLowerCase().includes(filterStop.toLowerCase()))
 		   innerHTML += `<li ${(isNextStop || filterStop) ? 'style="font-weight: bold; "' : ''}>
-           ${entry.a.slice(0, 5)} <span style="color: ${busColor};"> ${stringdelay} </span> - ${stopName} 
+           ${entry.a.slice(0, 5)} <span style="color: ${busColor};"> ${printDelay(delay)} </span> - ${stopName} 
            </li>`;
 	       else
 		   innerHTML += `<li ${isNextStop ? 'style="font-weight: bold; "' : ''}>
@@ -486,6 +486,7 @@
    function getBusDelayColor(delay) {
        if (delay > 0 && delay < 5) return "orange"; 
        else if (delay >= 5) return "red";
+       else if (delay < 0) return "darkblue";
        else return "green";
    }
 
@@ -521,11 +522,20 @@
    }
    
    // Calcule le retard d'un bus etant donnee le trajet theorique (schedule), le prochain arrêt, et le timestamp temps reel
-   // TO DO: could use real-time delays from dynamic data
-   function estimateDelay(schedule,currentStopSequence,timestamp) {
+   function estimateDelay_deprecated(schedule,currentStopSequence,timestamp) {
        //comparer l'heure qu'il est avec l'heure à laquelle il est supposé arriver au prochain arret, si heure courante superieure = retard
        if (schedule[currentStopSequence-1])
 	   return Math.round((timestamp - timeToUnixTimestamp(schedule[currentStopSequence-1].a))/60);
+   }
+
+   //Use GTFS-RT data to get delays
+   function estimateDelay(schedule,currentStopSequence,timestamp,tripId) {
+       let estimatedDelay=0;
+       if (schedule[currentStopSequence-1])
+	   estimatedDelay=Math.round((timestamp - timeToUnixTimestamp(schedule[currentStopSequence-1].a))/60);
+       //console.log(estimatedDelay);
+       //console.log(delayByTrip[tripId]);
+       return(delayByTrip[tripId]);
    }
 
    // Retourne le nom lisible du premier arrêt d'un trajet
@@ -544,15 +554,22 @@
        else return " "
    }
 
-   //Extract sheduled time at precise stop
+   //Make string delay with brackets and sign
+   function printDelay(delay) {
+       let strDelay = '';
+       if (delay > 0) strDelay = '(+'+delay+')';
+       else if (delay < 0) strDelay = '('+delay+')'; //delay is negative
+       return strDelay;
+   }
+
+   //Returns string with extract sheduled time at precise stop + delay
    function getStopTimeString(schedule,currentStopSequence,delay,filterStop) {
        let output = "";
-       const stringdelay = delay > 0 ? '(+'+delay+')' : '';
        if (schedule) {
 	   schedule.slice(currentStopSequence-1,schedule.length).forEach(entry => {  // we slice the schedule to reduce search in remaining stops
 	       const stopName = getStopName(entry.s,stopsData);
 	       if (stopName.toLowerCase().includes(filterStop.toLowerCase())) {
-		   output = stopName+" "+entry.a.slice(0, 5) +" "+ '<span style="color: red;">'+stringdelay+'</span>'
+		   output = `${stopName} ${entry.a.slice(0, 5)} <span style="color: ${getBusDelayColor(delay)};">${printDelay(delay)}</span>`;
 	       }
 	   }
 	   )
@@ -576,6 +593,7 @@
    // ---------------------------------------------------------------------------------------------
    // Utils functions to load and transform GTFS data
 
+   // Generic function to load GTFS protobuf
    async function loadGTFSProtobuf(url) {
        try {
            const response = await fetch(url);
@@ -593,11 +611,6 @@
    async function loadGTFSVehicleData() {
        gtfsVehicleData = await loadGTFSProtobuf(RT_VEHICLE_API_URL);
        //console.log("Données Vehicles chargées :", gtfsVehicleData);
-   }
-
-   async function loadGTFSAlertData() {
-       gtfsAlertData = await loadGTFSProtobuf(RT_ALERT_API_URL);
-       //console.log("Données Alerts chargées :", gtfsAlertData);
    }
 
    async function waitForHorairesData(timeout = 10000, interval = 100) {
@@ -618,24 +631,53 @@
        });
    }
 
+   // Function to map protobuf data to object
+   function transformVehicleGTFSData(gtfsData) {
+       return {
+           vehicles: gtfsData.entity.map(entity => ({
+               vehicleId: entity.vehicle?.id || entity.id, // Certains objets semblent avoir vehicle.id, d'autres non
+		   latitude: entity.vehicle.position?.latitude || null,
+		   longitude: entity.vehicle.position?.longitude || null,
+		   speed: entity.vehicle.position?.speed || null,
+		   currentStopSequence: entity.vehicle.currentStopSequence || null,
+		   timestamp: entity.vehicle.timestamp || null,
+		   stopId: entity.vehicle.stopId || null,
+		   trip: entity.vehicle.trip ? {
+		       tripId: entity.vehicle.trip.tripId || null,
+		       startTime: entity.vehicle.trip.startTime || null,
+		       startDate: entity.vehicle.trip.startDate || null,
+		       routeId: entity.vehicle.trip.routeId || null,
+		       route_short_name: getRouteShortName(entity.vehicle.trip.routeId) || null,
+		       route_long_name: getRouteLongName(entity.vehicle.trip.routeId) || null,
+		   } : null,
+		   agency: entity.vehicle.trip?.routeId?.split("-")[0] || null // Déduire l'agence depuis l'ID de la route
+   }))
+       };
+   }
+
+
+   async function loadGTFSAlertData() {
+       gtfsAlertData = await loadGTFSProtobuf(RT_ALERT_API_URL);
+       //console.log("Données Alerts chargées :", gtfsAlertData);
+   }
+
    async function fetchRealTimeAlertData() {
        //console.log("Fetching alerts once for this session");
        await loadGTFSAlertData();
        //console.log(JSON.stringify(gtfsAlertData, null, 2)); // Affichage formaté en JSON
        let first=1
        if (first) { // we wait for horairesData to be loaded on first execution because transformAlerts uses horairesData
-       await waitForHorairesData()
-       .then(data => console.log("horairesData chargé"))
-	       .catch(error => console.error(error.message));
+	   await waitForHorairesData()
+	   .then(data => console.log("horairesData chargé"))
+	   .catch(error => console.error(error.message));
        }
        first=0;
        transformAlertGTFSData(gtfsAlertData);
    }
 
-
+   // Function to map GTFS-RT alert data into alertsByRoute and alertsByStop objects
    function transformAlertGTFSData(gtfsData) {
        const entities = gtfsData.entity;
-
        //go through all entities (alerts)
        entities.forEach(entity => {
 	   const alert = entity.alert;
@@ -716,29 +758,43 @@
        });
    }
 
-   function transformVehicleGTFSData(gtfsData) {
-       return {
-           vehicles: gtfsData.entity.map(entity => ({
-               vehicleId: entity.vehicle?.id || entity.id, // Certains objets semblent avoir vehicle.id, d'autres non
-	       latitude: entity.vehicle.position?.latitude || null,
-		     longitude: entity.vehicle.position?.longitude || null,
-		     speed: entity.vehicle.position?.speed || null,
-		     currentStopSequence: entity.vehicle.currentStopSequence || null,
-		     timestamp: entity.vehicle.timestamp || null,
-		     stopId: entity.vehicle.stopId || null,
-		     trip: entity.vehicle.trip ? {
-			 tripId: entity.vehicle.trip.tripId || null,
-			 startTime: entity.vehicle.trip.startTime || null,
-			 startDate: entity.vehicle.trip.startDate || null,
-			 routeId: entity.vehicle.trip.routeId || null,
-			 route_short_name: getRouteShortName(entity.vehicle.trip.routeId) || null,
-			 route_long_name: getRouteLongName(entity.vehicle.trip.routeId) || null,
-		     } : null,
-		     agency: entity.vehicle.trip?.routeId?.split("-")[0] || null // Déduire l'agence depuis l'ID de la route
-   }))
-       };
+
+   //Load update GTFS-RT data to get delays
+   async function loadGTFSUpdateData() {
+       gtfsUpdateData = await loadGTFSProtobuf("https://gtfsrt.tectime.be/proto/RealTime/trips?key=02B64654B77F4781BCE7D12CA8EB7EDA");
+       //console.log("Données Updates chargées :", gtfsUpdateData);
    }
 
+
+   async function fetchRealTimeUpdateData() {
+       await loadGTFSUpdateData();
+       transformUpdateGTFSData(gtfsUpdateData);
+       //console.log(delayByTrip);
+       //summarizeDelays(gtfsUpdateData);
+       //console.log("Nbre de bus avec retard:",delayByTrip.length);
+   }
+   
+   function transformUpdateGTFSData(gtfsData) {
+       const entities = gtfsData.entity;
+       //go through all entities (alerts)
+       entities.forEach(entity => {
+	   const tripUpdate = entity.tripUpdate;
+	   if (!tripUpdate || !tripUpdate.delay || !tripUpdate.trip) return;
+	   const tripId = tripUpdate.trip.tripId;
+	   let delay = null;
+	   if (typeof tripUpdate.delay === "number") {
+	       delay = tripUpdate.delay;
+	   }
+	   if (delay != null) {
+	       delayByTrip[tripId] = Math.round(delay/60); //in minutes
+	   }
+	   
+       });
+   }
+   
+
+
+   
 
    // ---------------------------------------------------------------------------------------------
    // Fonction principale pour récupérer les donnees temps reel et afficher les marqueurs des bus sur la carte
@@ -795,7 +851,8 @@
 	       
 	       //Compute delay based on static schedule 
 	       const schedule = horairesData[bus.trip.tripId];
-	       const delay = schedule ? estimateDelay(schedule,bus.currentStopSequence,bus.timestamp) : 0;
+	       //const delay = schedule ? estimateDelay_deprecated(schedule,bus.currentStopSequence,bus.timestamp) : 0;
+	       const delay = schedule ? estimateDelay(schedule,bus.currentStopSequence,bus.timestamp,bus.trip.tripId) : 0;
 	       
 	       const filterStop = filterLineStops[bus.trip.route_short_name];
 	       let filterStopTime = "";
@@ -818,12 +875,12 @@
          <!-- 🚌 Bus ID: ${vehicleId} <br> //-->
          <i class="fas fa-map-marker-alt"></i> Position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} <br>
          <i class="fas fa-tachometer-alt"></i> Vitesse: ${speed ? speed + " km/h" : "N/A"} <br>
-         <i class="fas fa-bus"></i> Prochain arrêt: ${nextStopName} ${delay>0 ? `<span style="color:${busColor}; font-weight: bold;">+${delay}</span>`: ""}<br>
+         <i class="fas fa-bus"></i> Prochain arrêt: ${nextStopName} <span style="color:${busColor}; font-weight: bold;">${printDelay(delay)}</span><br>
          <a href="#" onclick="setScheduleForTrip('${trip.route_short_name}','${bus.trip.tripId}', '${bus.currentStopSequence}', '${bus.stopId}', '${delay}', '${filterStop}')"><button style="background:${busColor}; color:#fff; border:none; border-radius:4px; z-index: 1001; cursor:pointer; position: left">
 	       🕔 Voir l'horaire temps-réel de ce bus
 	       </button></a><br>
 ${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts+'\')"> <button id="open-alert-btn-popup">📢 Voir les alertes sur cette ligne ('+alerts.length+')</button></a><br>': ""}
-         `;
+               `;
 
 	       // Put the marker on the map
 	       if (busMarkers[vehicleId]) {
@@ -873,9 +930,11 @@ ${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts
    let formattedVehicleData = null;
    let formattedAlertData = null;
    let gtfsAlertData = null;
+   let gtfsUpdateData = null;
 
    let alertsByRoute = {};
    let alertsByStop = [];
+   let delayByTrip = {};
 
    const defaultCoords = [50.63, 5.56];
    const defaultZoom = 14;
@@ -943,10 +1002,15 @@ ${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts
 
 
    let first=1;
+   // Load realtime data (3 sources: updates, vehicles, alerts)
+   fetchRealTimeUpdateData();
+   // Rafraîchir les donnees de delays toutes les RT_REFRESH_RATE secondes
+   setInterval(fetchRealTimeUpdateData, RT_REFRESH_RATE);
    fetchRealTimeBusData();
-   fetchRealTimeAlertData(); //we only fetch alerts once in the session
    // Rafraîchir les donnees de position toutes les RT_REFRESH_RATE secondes
    setInterval(fetchRealTimeBusData, RT_REFRESH_RATE);
+   fetchRealTimeAlertData(); //we only fetch alerts once in the session
+   
    document.getElementById('close-side-btn').addEventListener('click', () => {
        document.getElementById('side-panel').classList.remove('open');
    });
