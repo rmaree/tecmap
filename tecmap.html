@@ -370,19 +370,25 @@
 
 
    //Fill the side panel with schedule data related to the tripId
-   function setScheduleForTrip(routeId,tripId, currentStopSequence, nextStopId, delay, filterStop) {
+   function setScheduleForTrip(routeId,routeShortId,tripId, currentStopSequence, nextStopId, delay, filterStop) {
        const panel = document.getElementById('side-panel');
        const content = document.getElementById('side-content');
        const title = document.getElementById('side-title');
        content.innerHTML = '';
        const operator = "TEC"
-       title.textContent = `Horaire de ce bus ligne ${routeId}  `; 
+       title.textContent = `Horaire de ce bus ligne ${routeShortId}  `; 
     
        // Récupérer les horaires de ce trajet a partir des donnees horaires theoriques
        const schedule = horairesData[tripId];  // variable definie dans le .js chargé
 
        // Récupérer couleur en fonction delai pour affichage +delay
        const busColor = getBusDelayColor(delay);
+
+       // Récupérer stats de retard/avances pour cette ligne
+       const stats = statsByRoute[routeId];
+       const avg = stats.avgDelay.toFixed(1);
+       const color = stats.color; //color attributed to the line given the mean avgdelay
+       
        
        if (!schedule) {
 	   content.innerHTML = '<p>Aucun horaire trouvé.</p>';
@@ -408,8 +414,13 @@
 	   content.innerHTML += innerHTML;
        }
        content.innerHTML += `<br>
-       <a href="#" onclick="openStaticSchedule('${routeId}')">Horaires théoriques de la ligne ${routeId}</a>
+       <a href="#" onclick="openStaticSchedule('${routeShortId}')">Horaires théoriques de la ligne ${routeShortId}</a>
        `;
+
+       // stats about delays for this line
+       content.innerHTML += `
+	       <p>Délai pour la ligne ${routeShortId}: <br><span style="color:${color}; font-weight:bold;">${avg} min</span> (moyenne pour ${stats.count} bus)</p>
+       `;  
        panel.classList.add('open');
    }
    
@@ -529,12 +540,7 @@
    }
 
    //Use GTFS-RT data to get delays
-   function estimateDelay(schedule,currentStopSequence,timestamp,tripId) {
-       let estimatedDelay=0;
-       if (schedule[currentStopSequence-1])
-	   estimatedDelay=Math.round((timestamp - timeToUnixTimestamp(schedule[currentStopSequence-1].a))/60);
-       //console.log(estimatedDelay);
-       //console.log(delayByTrip[tripId]);
+   function estimateDelay(tripId) {
        return(delayByTrip[tripId]);
    }
 
@@ -569,7 +575,7 @@
 	   schedule.slice(currentStopSequence-1,schedule.length).forEach(entry => {  // we slice the schedule to reduce search in remaining stops
 	       const stopName = getStopName(entry.s,stopsData);
 	       if (stopName.toLowerCase().includes(filterStop.toLowerCase())) {
-		   output = `${stopName} ${entry.a.slice(0, 5)} <span style="color: ${getBusDelayColor(delay)};">${printDelay(delay)}</span>`;
+		   output = `${stopName} ${entry.a.slice(0, 5)} <span style="color: ${getBusDelayColor(delay)}; font-weight: bold;">${printDelay(delay)}</span>`;
 	       }
 	   }
 	   )
@@ -636,22 +642,22 @@
        return {
            vehicles: gtfsData.entity.map(entity => ({
                vehicleId: entity.vehicle?.id || entity.id, // Certains objets semblent avoir vehicle.id, d'autres non
-		   latitude: entity.vehicle.position?.latitude || null,
-		   longitude: entity.vehicle.position?.longitude || null,
-		   speed: entity.vehicle.position?.speed || null,
-		   currentStopSequence: entity.vehicle.currentStopSequence || null,
-		   timestamp: entity.vehicle.timestamp || null,
-		   stopId: entity.vehicle.stopId || null,
-		   trip: entity.vehicle.trip ? {
-		       tripId: entity.vehicle.trip.tripId || null,
-		       startTime: entity.vehicle.trip.startTime || null,
-		       startDate: entity.vehicle.trip.startDate || null,
-		       routeId: entity.vehicle.trip.routeId || null,
-		       route_short_name: getRouteShortName(entity.vehicle.trip.routeId) || null,
-		       route_long_name: getRouteLongName(entity.vehicle.trip.routeId) || null,
-		   } : null,
-		   agency: entity.vehicle.trip?.routeId?.split("-")[0] || null // Déduire l'agence depuis l'ID de la route
-   }))
+	       latitude: entity.vehicle.position?.latitude || null,
+	       longitude: entity.vehicle.position?.longitude || null,
+	       speed: entity.vehicle.position?.speed || null,
+	       currentStopSequence: entity.vehicle.currentStopSequence || null,
+	       timestamp: entity.vehicle.timestamp || null,
+	       stopId: entity.vehicle.stopId || null,
+	       trip: entity.vehicle.trip ? {
+		   tripId: entity.vehicle.trip.tripId || null,
+		   startTime: entity.vehicle.trip.startTime || null,
+		   startDate: entity.vehicle.trip.startDate || null,
+		   routeId: entity.vehicle.trip.routeId || null,
+		   route_short_name: getRouteShortName(entity.vehicle.trip.routeId) || null,
+		   route_long_name: getRouteLongName(entity.vehicle.trip.routeId) || null,
+	       } : null,
+	       agency: entity.vehicle.trip?.routeId?.split("-")[0] || null // Déduire l'agence depuis l'ID de la route
+	   }))
        };
    }
 
@@ -768,28 +774,54 @@
 
    async function fetchRealTimeUpdateData() {
        await loadGTFSUpdateData();
-       transformUpdateGTFSData(gtfsUpdateData);
+       transformUpdateGTFSData(gtfsUpdateData,1);
+       //console.log(statsByRoute);
        //console.log(delayByTrip);
-       //summarizeDelays(gtfsUpdateData);
-       //console.log("Nbre de bus avec retard:",delayByTrip.length);
    }
    
-   function transformUpdateGTFSData(gtfsData) {
+   function transformUpdateGTFSData(gtfsData, computeStats = false) {
        const entities = gtfsData.entity;
+       statsByRoute = {}; //reinitialize statsByRoute
        //go through all entities (alerts)
        entities.forEach(entity => {
 	   const tripUpdate = entity.tripUpdate;
-	   if (!tripUpdate || !tripUpdate.delay || !tripUpdate.trip) return;
+	   if (!tripUpdate || !tripUpdate.trip || !tripUpdate.vehicle) return;
 	   const tripId = tripUpdate.trip.tripId;
-	   let delay = null;
+	   const routeId = tripUpdate.trip.routeId;
+	   let delay = 0;
 	   if (typeof tripUpdate.delay === "number") {
-	       delay = tripUpdate.delay;
+	       delay = Math.round(tripUpdate.delay/60); // in minutes
+	       delayByTrip[tripId] = delay;
 	   }
-	   if (delay != null) {
-	       delayByTrip[tripId] = Math.round(delay/60); //in minutes
+
+	   // if we compute stats
+	   if (computeStats && routeId && delay != null) {
+	       if (!statsByRoute[routeId]) {
+		   statsByRoute[routeId] = {
+		       totalDelay: 0,
+		       count: 0,
+		       lateCount: 0,
+		       advanceCount: 0
+		   };
+	       }
+	       const s = statsByRoute[routeId];
+	       s.totalDelay += delay;
+	       s.count++;
+	       if (delay > 0) s.lateCount++;
+	       if (delay < 0) s.advanceCount++;
 	   }
-	   
-       });
+       }); //end of entities
+       
+       // if we computestats, compute avgDelay for each route
+       if (computeStats) {
+	   Object.keys(statsByRoute).forEach(routeId => {
+	       const s = statsByRoute[routeId];
+	       s.avgDelay = s.count > 0 ? s.totalDelay / s.count : 0;
+	       s.color = getBusDelayColor(s.avgDelay); // store color for panel display
+	   });
+	   //return { delayByTrip, statsByRoute };
+       }
+       //return { delayByTrip };
    }
    
 
@@ -852,7 +884,7 @@
 	       //Compute delay based on static schedule 
 	       const schedule = horairesData[bus.trip.tripId];
 	       //const delay = schedule ? estimateDelay_deprecated(schedule,bus.currentStopSequence,bus.timestamp) : 0;
-	       const delay = schedule ? estimateDelay(schedule,bus.currentStopSequence,bus.timestamp,bus.trip.tripId) : 0;
+	       const delay = schedule ? estimateDelay(bus.trip.tripId) : 0;
 	       
 	       const filterStop = filterLineStops[bus.trip.route_short_name];
 	       let filterStopTime = "";
@@ -876,11 +908,11 @@
          <i class="fas fa-map-marker-alt"></i> Position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} <br>
          <i class="fas fa-tachometer-alt"></i> Vitesse: ${speed ? speed + " km/h" : "N/A"} <br>
          <i class="fas fa-bus"></i> Prochain arrêt: ${nextStopName} <span style="color:${busColor}; font-weight: bold;">${printDelay(delay)}</span><br>
-         <a href="#" onclick="setScheduleForTrip('${trip.route_short_name}','${bus.trip.tripId}', '${bus.currentStopSequence}', '${bus.stopId}', '${delay}', '${filterStop}')"><button style="background:${busColor}; color:#fff; border:none; border-radius:4px; z-index: 1001; cursor:pointer; position: left">
+         <a href="#" onclick="setScheduleForTrip('${trip.routeId}','${trip.route_short_name}','${bus.trip.tripId}', '${bus.currentStopSequence}', '${bus.stopId}', '${delay}', '${filterStop}')"><button style="background:${busColor}; color:#fff; border:none; border-radius:4px; z-index: 1001; cursor:pointer; position: left">
 	       🕔 Voir l'horaire temps-réel de ce bus
 	       </button></a><br>
 ${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts+'\')"> <button id="open-alert-btn-popup">📢 Voir les alertes sur cette ligne ('+alerts.length+')</button></a><br>': ""}
-               `;
+       `;
 
 	       // Put the marker on the map
 	       if (busMarkers[vehicleId]) {
@@ -935,6 +967,7 @@ ${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts
    let alertsByRoute = {};
    let alertsByStop = [];
    let delayByTrip = {};
+   let statsByRoute = {};
 
    const defaultCoords = [50.63, 5.56];
    const defaultZoom = 14;
