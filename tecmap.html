@@ -197,35 +197,44 @@
     </style>
 </head>
 <body>
+    
+    <div id="filter-container" style="position: absolute; top: 10px; left: 50px; background: white; padding: 5px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 1000;">
+	<div style="display: flex; align-items: center; gap: 3px; margin-bottom: 4px;">
+	    <input type="text" id="busFilter" placeholder="Filtrer par ligne" oninput="fetchRealTimeBusData(0)" style="flex:1;">
+	    <a href="#" onclick="openStaticSchedule()">⏱</a>
+	    <button onclick="clearFilter()">❌</button>
+	</div>
+	<div style="display: flex; align-items: center; gap: 6px;">
+	    <label for="colorModeSelect">Mode couleurs:</label>
+	    <select id="colorModeSelect" onchange="updateColorMode()">
+		<option value="delay">Retard / avance</option>
+		<option value="speed">Vitesse</option>
+	    </select>
+	    <span title="Aide">
+		<a href="#" onclick="showColorLegendInPanel()"><i class="fa-solid fa-question"></i></a>
+	    </span>
+	</div>
+	<p style="margin: 4px 0 0;">Bus visibles : <span id="busCount">0</span></p>
+    </div>
 
-  <!-- Filter area -->
-  <div id="filter-container" style="position: absolute; top: 10px; left: 50px; background: white; padding: 5px; z-index: 1000;">
-    <div style="display: flex; align-items: center; gap: 5px;">
-	  <input type="text" id="busFilter" placeholder="Filtrer par ligne de bus" oninput="fetchRealTimeBusData(0)">  <!-- we filter without gtfs data update -->
-	  <span><a href="#" onclick="openStaticSchedule()"> ⏱ </a></span>
-	  <button onclick="clearFilter()">❌</button>
-      </div>
-      <p style="margin: 0;">Nombre de bus visibles: <span id="busCount">0</span></p>
-  </div>
-
-
-  <!-- Lateral panel for alerts, schedules, other infos -->
-  <div id="side-panel">
-      <div class="header">
-	  <span id="side-title">Alertes</span>
-	  <!-- <span><a href="#" onclick="openStaticSchedule()">  ⏱    </a></span> -->
-	  <button id="close-side-btn">❌</button>
-      </div>
-      <div id="side-content">
-	  <!-- Data (alerts, schedules,...) will be automatically inserted here -->
-      </div>
-  </div>
   
 
+    <!-- Lateral panel for alerts, schedules, other infos -->
+    <div id="side-panel">
+	<div class="header">
+	    <span id="side-title">Alertes</span>
+	    <!-- <span><a href="#" onclick="openStaticSchedule()">  ⏱    </a></span> -->
+	    <button id="close-side-btn">❌</button>
+	</div>
+	<div id="side-content">
+	    <!-- Data (alerts, schedules,...) will be automatically inserted here -->
+	</div>
+    </div>
 
-  <div id="map"></div>
+    
+    <div id="map"></div>
 
-  <script>
+    <script>
    // ---------------------------------------------------------------------------------------------
    // Utils 
 
@@ -320,9 +329,39 @@
        });
    }
 
+
+   // Fill the side panel with color legends for both modes
+   function showColorLegendInPanel() {
+       const panel = document.getElementById('side-panel');
+       const content = document.getElementById('side-content');
+       const title = document.getElementById('side-title');
+
+       content.innerHTML = '';
+       title.textContent = `Légende des modes couleurs`;
+       
+       content.innerHTML = `
+	   <h4>Mode Retard/Avance</h4>
+	   <ul style="list-style:none; padding-left:0;">
+	       <li><span style="color:blue;">■</span> En avance</li>
+	       <li><span style="color:green;">■</span> À l'heure</li>
+	       <li><span style="color:orange;">■</span> Retard entre 1 et 5 min</li>
+	       <li><span style="color:red;">■</span> Retard > 5 min</li>
+	   </ul>
+
+	   <h4>Mode Vitesse</h4>
+	   <ul style="list-style:none; padding-left:0;">
+	       <li><span style="color:grey">■</span> Vitesse non disponible</li>
+	       <li><span style="color:black">■</span> Lent (< 15 km/h)</li>
+	       <li><span style="color:green">■</span> Normal</li>
+	       <li><span style="color:limegreen">■</span> Très rapide (> 90 km/h)</li>
+	   </ul>
+       `;
+       
+       panel.classList.add('open');
+   }
    
    //Fill the side panel with alert data related to the routeId
-   function setAlertsForRoute(routeId) {
+   function showAlertsInPanel(routeId) {
        const panel = document.getElementById('side-panel');
        const content = document.getElementById('side-content');
        const title = document.getElementById('side-title');
@@ -363,14 +402,14 @@
 
 
    //Fill the side panel with schedule data related to the tripId
-   function setScheduleForTrip(routeId,routeShortId,tripId, currentStopSequence, nextStopId, delay, filterStop) {
+   function showTripScheduleInPanel(routeId,routeShortId,tripId, currentStopSequence, nextStopId, delay, filterStop) {
        const panel = document.getElementById('side-panel');
        const content = document.getElementById('side-content');
        const title = document.getElementById('side-title');
        content.innerHTML = '';
        const operator = "TEC"
        title.textContent = `Horaire de ce bus ligne ${routeShortId}  `; 
-    
+       
        // Retrieve schedule for this tripId based on theoretical static schedule
        const schedule = horairesData[tripId];  // horairesData is defined in the loaded .js file
 
@@ -476,13 +515,30 @@
        });
    }
 
+   // Call color function based on coloring mode
+   function getBusColor(delay, speed) {
+       if (currentColorMode === COLOR_MODES.DELAY) {
+	   return getBusDelayColor(delay);
+       } else if (currentColorMode === COLOR_MODES.SPEED) {
+	   return getBusSpeedColor(speed);
+       }
+       return "gray"; // default value
+   }
+
+   function updateColorMode() {
+       const select = document.getElementById("colorModeSelect");
+       currentColorMode = select.value;
+       // On peut rafraîchir les couleurs des marqueurs si nécessaire :
+       //refreshBusMarkers();
+   }
+   
+   
    // Outputs a color for vehicle icon based on speed (not used anymore but might be a future option to display speed map rather than delay map)
    function getBusSpeedColor(speed) {
-       if (speed === null) return "grey";
-       else if (speed < 10) return "black";
-       else if (speed >= 10 && speed <= 50) return "green";
-       else if (speed > 50 && speed <= 70) return "orange";
-       else return "red";
+       if (typeof speed !== "number" || isNaN(speed)) return "grey";
+       else if (speed < 15) return "black";
+       else if (speed >= 15 && speed <= 90) return "green";
+       else return "limegreen";
    }
 
    // Outputs a color for vehicle based on delay
@@ -886,7 +942,8 @@
 	       const alerts = alertsByRoute[routeIdForAlerts] || [];
 	       
 	       // Icon and color for bus marker 
-	       const busColor = getBusDelayColor(delay);
+	       //const busColor = getBusDelayColor(delay);
+	       const busColor = getBusColor(delay,bus.speed);
 	       const busIcon = makeVehicleIcon(bus, busColor);
 
 	       // Content of the popup when user clicks on bus marker
@@ -897,12 +954,12 @@
          <!-- 🚌 Bus ID: ${vehicleId} <br> //-->
          <i class="fas fa-map-marker-alt"></i> Position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} <br>
          <i class="fas fa-tachometer-alt"></i> Vitesse: ${speed ? speed + " km/h" : "N/A"} <br>
-         <i class="fas fa-bus"></i> Prochain arrêt: ${nextStopName} <span style="color:${busColor}; font-weight: bold;">${printDelay(delay)}</span><br>
-         <a href="#" onclick="setScheduleForTrip('${trip.routeId}','${trip.route_short_name}','${bus.trip.tripId}', '${bus.currentStopSequence}', '${bus.stopId}', '${delay}', '${filterStop}')"><button style="background:${busColor}; color:#fff; border:none; border-radius:4px; z-index: 1001; cursor:pointer; position: left">
+         <i class="fas fa-bus"></i> Prochain arrêt: ${nextStopName} <span style="color:${getBusDelayColor(delay)}; font-weight: bold;">${printDelay(delay)}</span><br>
+         <a href="#" onclick="showTripScheduleInPanel('${trip.routeId}','${trip.route_short_name}','${bus.trip.tripId}', '${bus.currentStopSequence}', '${bus.stopId}', '${delay}', '${filterStop}')"><button style="background:${getBusDelayColor(delay)}; color:#fff; border:none; border-radius:4px; z-index: 1001; cursor:pointer; position: left">
 	       🕔 Voir l'horaire temps-réel de ce bus
 	       </button></a><br>
-${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts+'\')"> <button id="open-alert-btn-popup">📢 Voir les alertes sur cette ligne ('+alerts.length+')</button></a><br>': ""}
-       `;
+${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts+'\')"> <button id="open-alert-btn-popup">📢 Voir les alertes sur cette ligne ('+alerts.length+')</button></a><br>': ""}
+	       `;
 
 	       // Put the marker on the map
 	       if (busMarkers[vehicleId]) {
@@ -952,6 +1009,12 @@ ${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts
    let alertsByStop = [];
    let delayByTrip = {};
    let statsByRoute = {};
+
+   const COLOR_MODES = {
+       DELAY: "delay",
+       SPEED: "speed"
+   };
+   let currentColorMode = COLOR_MODES.DELAY; // default coloring mode is based on delay
 
    const defaultCoords = [50.63, 5.56];
    const defaultZoom = 14;
