@@ -55,7 +55,7 @@
 	 text-shadow: 1px 1px 2px white;
      }
      
-     /* Classes dynamiques pour changer la couleur des icônes */
+     /* Dynamic classes to change color/style of bus markers */
      .bus-icon-black { color: black; }
      .bus-icon-green { color: green; }
      .bus-icon-orange { color: orange; }
@@ -161,9 +161,6 @@
 
      #open-side-btn-popup {
 	 position: left;
-	 /*bottom: 3em;*/
-	 /*right: 1em;*/
-	 /*padding: 0.5em 1em;*/
 	 background: #d9534f;
 	 color: #fff;
 	 border: none;
@@ -176,7 +173,7 @@
      .bus-schedule {
 	 list-style: none;
 	 margin: 0;
-	 padding-left: 15px; /* marge pour aérer à gauche */
+	 padding-left: 15px; /* margin to clear space left side */
      }
 
      .bus-schedule li::before {
@@ -188,9 +185,6 @@
      
      #open-alert-btn-popup {
 	 position: left;
-	 /*bottom: 3em;*/
-	 /*right: 1em;*/
-	 /*padding: 0.5em 1em;*/
 	 background: #d9534f;
 	 color: #fff;
 	 border: none;
@@ -215,7 +209,7 @@
   </div>
 
 
-  <!-- Panneau latéral Alertes -->
+  <!-- Lateral panel for alerts, schedules, other infos -->
   <div id="side-panel">
       <div class="header">
 	  <span id="side-title">Alertes</span>
@@ -223,7 +217,7 @@
 	  <button id="close-side-btn">❌</button>
       </div>
       <div id="side-content">
-	  <!-- Alertes seront affichées ici dynamiquement -->
+	  <!-- Data (alerts, schedules,...) will be automatically inserted here -->
       </div>
   </div>
   
@@ -233,7 +227,7 @@
 
   <script>
    // ---------------------------------------------------------------------------------------------
-   // Fonctions utilitaires
+   // Utils 
 
    function openStaticSchedule(routeId) {
        let url = '';
@@ -246,37 +240,36 @@
        window.open(url, "_blank");
    }
    
-   // Fonction pour calculer le numéro de la semaine actuelle (ISO 8601)
+   // Compute the ISO 8601 current week number 
    function getISOWeekNumber(date = new Date()) {
        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-       d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7)); // première semaine de l'année est la semaine où tombe le premier jeudi
+       d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7)); // first week of the year is the week with the first thursday
        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
        return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
    }
    
-   // Fonction pour charger dynamiquement le fichier des horaires en fonction du jour et de la semaine (congés scolaires ou pas)
+   // Dynamic load of the right schedule file based on day of the week and week number (holidays/regular)
    function loadScheduleFile() {
        const holidayWeeks = [1, 9, 10, 18, 19, 28, 29, 30, 31, 32, 33, 34, 43, 44, 52]; //Belgium holiday weeks in 2025
        const dayOfWeek = new Date().getDay();
        const currentWeek = getISOWeekNumber();
        let suffix = holidayWeeks.includes(currentWeek) ? "_VAC" : "";
-       let scriptFile = "data/stop_times-SEM"+suffix+".js"; // Par défaut, horaires pour les jours de la semaine
+       let scriptFile = "data/stop_times-SEM"+suffix+".js"; // Default schedule for weekdays
        
        if (dayOfWeek === 0) { // Dimanche holidays / not holidays
 	   scriptFile = "data/stop_times-DIM.js";
-       } else if (dayOfWeek === 6) { // Samedi
+       } else if (dayOfWeek === 6) { // Saturday
 	   scriptFile = "data/stop_times-SAM.js";
        } else if (dayOfWeek === 3 && !holidayWeeks.includes(currentWeek)) { // Mercredi, wednesday in SEM during holidays
 	   scriptFile = "data/stop_times-MER.js";
        }
 
        //console.log(scriptFile);
-       // Créer et insérer dynamiquement un script
+       // Create and insert script dynamically
        const script = document.createElement("script");
        script.src = scriptFile;
        script.onload = () => console.log(`Horaires théoriques chargés depuis ${scriptFile}`);
        script.onerror = () => console.error(`Erreur de chargement du fichier ${scriptFile}`);
-
        document.head.appendChild(script);
    }
 
@@ -285,7 +278,7 @@
        return new Date(`${year}-${month}-${day}T${timeStr}`);
    }
 
-   //Function to sort alerts based on startTime and remove alerts that already happened
+   // Sort alerts based on startTime and remove alerts that already happened (e.g. earlier in this day)
    function sortCleanAlerts(alerts) {
        const now = new Date();
 
@@ -296,7 +289,7 @@
 	       const lastStop = stops[stops.length - 1];
 	       if (lastStop && lastStop.a) {
 		   const endOfTrip = parseDate(alert.start, lastStop.a);
-		   return endOfTrip >= now; // we keep it if trip not theoritically ended
+		   return endOfTrip >= now; // we keep it if trip not yet theoritically ended
 	       }
 	   }
 	   if (alert.starttime) {
@@ -304,7 +297,7 @@
 	       const alertDate = parseDate(alert.start, alert.starttime);
 	       return alertDate >= now;
 	   }
-	   // keep other alerts without sansstarttime (stop moves, general info)
+	   // keep other alerts without starttime (stop moves, general info)
 	   return true;
        });
 
@@ -378,13 +371,13 @@
        const operator = "TEC"
        title.textContent = `Horaire de ce bus ligne ${routeShortId}  `; 
     
-       // Récupérer les horaires de ce trajet a partir des donnees horaires theoriques
-       const schedule = horairesData[tripId];  // variable definie dans le .js chargé
+       // Retrieve schedule for this tripId based on theoretical static schedule
+       const schedule = horairesData[tripId];  // horairesData is defined in the loaded .js file
 
-       // Récupérer couleur en fonction delai pour affichage +delay
+       // Retrieve color based on bus delay to display +delay string
        const busColor = getBusDelayColor(delay);
 
-       // Récupérer stats de retard/avances pour cette ligne
+       // Retrieve delay stats for the routeId line
        const stats = statsByRoute[routeId];
        const avg = stats.avgDelay.toFixed(1);
        const color = stats.color; //color attributed to the line given the mean avgdelay
@@ -417,32 +410,32 @@
        <a href="#" onclick="openStaticSchedule('${routeShortId}')">Horaires théoriques de la ligne ${routeShortId}</a>
        `;
 
-       // stats about delays for this line
+       // Display stats about delays for this line
        content.innerHTML += `
 	       <p>Délai pour la ligne ${routeShortId}: <br><span style="color:${color}; font-weight:bold;">${avg} min</span> (moyenne pour ${stats.count} bus)</p>
        `;  
        panel.classList.add('open');
    }
    
-   // Fonction pour nettoyer le filtre
+   // Clear bus filter
    function clearFilter() {
        document.getElementById('busFilter').value = '';
-       fetchRealTimeBusData(); // Recupere data apres la suppression du filtre
+       fetchRealTimeBusData(); // Refresh data to refresh the map after clearing the filter
    }
    
-   // Calcul du nombre de minutes depuis le démarrage du bus, deprecated, not used anymore
+   // Compute minutes sinces bus started (deprecated, not used anymore)
    function getTimeSinceStart(startTime) {
-       const now = new Date(); // Heure actuelle
+       const now = new Date(); // current time
        const currentDate = now.toISOString().split('T')[0];
        const fullStartTime = `${currentDate}T${startTime}`;
-       const startDate = new Date(fullStartTime); // Convertir startTime en objet Date
-       const differenceInMillis = now - startDate; // Différence en millisecondes
-       const differenceInMinutes = Math.floor(differenceInMillis / 60000); // Convertir en minutes
+       const startDate = new Date(fullStartTime); // Convert startTime into Data object
+       const differenceInMillis = now - startDate; // Difference in milliseconds
+       const differenceInMinutes = Math.floor(differenceInMillis / 60000); // Convert in minutes
        return differenceInMinutes;
    }
 
 
-   // Recupere le nom lisible d'un arret
+   // Get readable stop name based on stopId (identifier in gtfs static)
    function getStopName(stopId, stopsMap) {
        if (stopId) {
 	   return stopsMap[stopId] || "Arrêt inconnu";
@@ -450,7 +443,7 @@
    }
 
 
-   //function to create a specific vehicle icon based on vehicle type and color for delays
+   // Create a specific vehicle marker icon based on vehicle type and buscolor (based on delay)
    function makeVehicleIcon(bus, busColor) {
        const route = bus.trip.route_short_name;
 
@@ -460,15 +453,14 @@
 	   "default": "fas fa-bus"        // Bus normal
        };
 
-       // Choix de l'icône
+       // Determine icon based on local knowledge of vehicle type
        let iconClass = icons.default;
-       if (route === "T1") { //T1 in Liege
+       if (route === "T1") { //T1 in Liege is the tram
 	   iconClass = icons.tram;
        } else if (["M1","M2","M3","M4","M5"].includes(route)) {  // in Charleroi
 	   iconClass = icons.metro;
        }
-
-       // Numero en italique si bus express (E...)
+       // Use of italic for express buses (E... in Wallonia)
        const numberStyle = route.startsWith("E") ? "font-style: italic;" : "";
 
        return L.divIcon({
@@ -484,7 +476,7 @@
        });
    }
 
-   // Détermine la couleur de l'icône du bus en fonction de la vitesse (not used anymore)
+   // Outputs a color for vehicle icon based on speed (not used anymore but might be a future option to display speed map rather than delay map)
    function getBusSpeedColor(speed) {
        if (speed === null) return "grey";
        else if (speed < 10) return "black";
@@ -493,7 +485,7 @@
        else return "red";
    }
 
-   // Détermine la couleur de l'icône du bus en fonction de son retard
+   // Outputs a color for vehicle based on delay
    function getBusDelayColor(delay) {
        if (delay > 0 && delay < 5) return "orange"; 
        else if (delay >= 5) return "red";
@@ -501,22 +493,22 @@
        else return "green";
    }
 
-   // Convertir timestamp UNIX en temps lisible
+   // Convert UNIX timestamp UNIX into human-readable time
    function timestampToTime(timestamp) {
-       const date = new Date(timestamp * 1000); // Convertir en millisecondes
+       const date = new Date(timestamp * 1000); // Convert in milliseconds
        const hours = date.getHours().toString().padStart(2, '0');
        const minutes = date.getMinutes().toString().padStart(2, '0');
        const seconds = date.getSeconds().toString().padStart(2, '0');
        return `${hours}:${minutes}:${seconds}`;
    }
 
-   // Convertir temps lisible en timestamp UNIX
+   // Convert readable time into UNIX timestamp
    function timeToUnixTimestamp(timeStr, referenceDate = new Date()) {
        const [hours, minutes] = timeStr.split(":").map(Number);  //time is formatted HH:MM
-       // Copier la date de référence Unix et mettre l'heure indiquée
+       // Get reference readable date into timestamp and set specific time
        const date = new Date(referenceDate);
        date.setHours(hours, minutes, 0, 0);
-       // Retourner le timestamp Unix en secondes
+       // Output Unix timestamp Unix in seconds
        return Math.floor(date.getTime() / 1000);
    }
 
@@ -528,13 +520,12 @@
 	   hour: '2-digit', minute: '2-digit',
 	   year: 'numeric'
        });
-       
        return d;
    }
    
-   // Calcule le retard d'un bus etant donnee le trajet theorique (schedule), le prochain arrêt, et le timestamp temps reel
+   // Compute delays based on current timestamp, static schedule, and next stops, estimation that only works for delay (no advance)
    function estimateDelay_deprecated(schedule,currentStopSequence,timestamp) {
-       //comparer l'heure qu'il est avec l'heure à laquelle il est supposé arriver au prochain arret, si heure courante superieure = retard
+       // Compare current time with planned time at next stop, delay=difference
        if (schedule[currentStopSequence-1])
 	   return Math.round((timestamp - timeToUnixTimestamp(schedule[currentStopSequence-1].a))/60);
    }
@@ -544,17 +535,17 @@
        return(delayByTrip[tripId]);
    }
 
-   // Retourne le nom lisible du premier arrêt d'un trajet
+   // Human-readable first stop name of a trip
    function getStartPoint(tripId) {
-       const schedule = horairesData[tripId]; // busSchedules doit contenir les données du fichier
+       const schedule = horairesData[tripId]; // horairesData loaded with stop ids
        if (schedule)
 	   return getStopName(schedule[0].s,stopsData)  //s = stopId
        else return " "
    }
 
-   // Retourne le nom lisible du terminus d'un trajet
+   // Human-readable last stop name (terminus) of a trip
    function getEndPoint(tripId) {
-       const schedule = horairesData[tripId]; // busSchedules doit contenir les données du fichier
+       const schedule = horairesData[tripId]; // horairesData loaded with stop ids
        if (schedule)
 	   return getStopName(schedule[(schedule.length)-1].s,stopsData)  // s = stopId
        else return " "
@@ -668,7 +659,6 @@
    }
 
    async function fetchRealTimeAlertData() {
-       //console.log("Fetching alerts once for this session");
        await loadGTFSAlertData();
        //console.log(JSON.stringify(gtfsAlertData, null, 2)); // Affichage formaté en JSON
        let first=1
@@ -829,7 +819,7 @@
    
 
    // ---------------------------------------------------------------------------------------------
-   // Fonction principale pour récupérer les donnees temps reel et afficher les marqueurs des bus sur la carte
+   // Main function to get real-time data and display markers on the map
    async function fetchRealTimeBusData(update=1) { // by default this function will update gtfs remote data
        try {
 	   // Uses external API to get real-time json data
@@ -839,7 +829,7 @@
 	       //console.log(JSON.stringify(formattedVehicleData, null, 2)); // Affichage formaté en JSON
 	   }
 	   
-	   // Récupère la valeur du filtre de ligne entré par l'utilisateur.ice
+	   // Get filter values from the input box 
 	   let tooltip_permanent = 0;
 	   const filterLineStops = {};
 	   let filterValues = document.getElementById('busFilter').value.split(" ").map(num => num.trim()); // Convertit en tableau
@@ -852,12 +842,11 @@
 	       });
 	   }
 	   
-	   // Vérifier et initialiser busMarkers correctement
+	   // Check and reinitialize busMarkers 
 	   if (!Array.isArray(busMarkers)) {
 	       busMarkers = [];
 	   }
-	   
-	   // Supprimer les anciens marqueurs
+	   // Delete old bus markers from map
 	   if (busMarkers) {
 	       busMarkers.forEach(marker => map.removeLayer(marker));
 	       busMarkers = [];
@@ -870,11 +859,11 @@
 	   }
 	   first=0;
 
-	   //Parcours toutes les vehicle data temps-reel
+	   // Loop in real-time formatted vehicle data
 	   formattedVehicleData.vehicles.forEach(bus => {
 	       const { vehicleId, latitude, longitude, speed, trip, stopId, currentStopSequence, timestamp } = bus;
 
-	       // Appliquer le filtre (si non vide), we do not display bus lines which are not in the filter
+	       // If the filter is not null, we skip bus lines which are not in the filter
 	       if (filterValues.length > 0 && filterValues[0] != '' && !(trip.route_short_name.toString() in filterLineStops)) return;
 	       
 	       const nextStopName = getStopName(bus.stopId,stopsData);
@@ -896,10 +885,11 @@
 	       const routeIdForAlerts = bus.trip.routeId.split("-")[0]; //alerts are stored using simplified id
 	       const alerts = alertsByRoute[routeIdForAlerts] || [];
 	       
-	       // Définition de l'icône en fonction du type de vehicle et avec couleur dynamique en fonction du delay
+	       // Icon and color for bus marker 
 	       const busColor = getBusDelayColor(delay);
 	       const busIcon = makeVehicleIcon(bus, busColor);
-	       
+
+	       // Content of the popup when user clicks on bus marker
                const popupContent = `
          <b>Ligne ${trip.route_short_name}</b> ${trip.route_long_name} <br>
          De: ${startPoint} <br>
@@ -916,26 +906,20 @@ ${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts
 
 	       // Put the marker on the map
 	       if (busMarkers[vehicleId]) {
-                   // Mise à jour du marqueur existant // not used anymore since we delete busmarkers?
+                   // Update of existing marker // not used anymore since we delete busmarkers?
 		   console.log("update marker bus");
                    busMarkers[vehicleId].setLatLng([latitude, longitude])
 					.setPopupContent(popupContent)
 					.setIcon(busIcon);
                } else {
-                   // Ajout d'un nouveau marqueur
+                   // Add new marker to busMarkers array
                    busMarkers[vehicleId] = L.marker([latitude, longitude], { icon: busIcon}).addTo(map)
 		                            .bindTooltip(`<i class="fas fa-arrow-right"></i> <b>${endPoint}</b> <br> ${filterStopTime}`, { permanent: tooltip_permanent, direction: "top" })
-			       .bindPopup(popupContent);
+					    .bindPopup(popupContent);
                }
 
-	       
-	       // Ajout du marqueur sur la carte pour ce bus
-	       //busMarkers[vehicleId] = L.marker([latitude, longitude], { icon: busIcon}).addTo(map)
-		//			.bindTooltip(`<i class="fas fa-arrow-right"></i> <b>${endPoint}</b> <br> ${filterStopTime}`, { permanent: tooltip_permanent, direction: "top" })
-	       //			.bindPopup(popupContent);
-	       
            });
-	   //update the number of visible bus in map view
+	   //update the number of visible bus in current Map view
 	   let bounds = map.getBounds();
 	   let visibleBuses = busMarkers.filter(marker => bounds.contains(marker.getLatLng()));
 	   document.getElementById('busCount').textContent = visibleBuses.length;
@@ -1023,11 +1007,11 @@ ${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts
    var layerControl = L.control.layers(baseMaps).addTo(map);
    
    
-   // Ajouter le bouton de localisation
+   // Add geolocation button
    lc = L.control.locate({
-       follow: true,          // Suit la position de l'utilisateur en temps réel
-       keepCurrentZoomLevel: true, // Ne change pas le niveau de zoom actuel
-       icon: "fa-solid fa-location-dot", //"fas fa-map-marker-alt", // Icône FontAwesome
+       follow: true,          // Follow user position in real-time
+       keepCurrentZoomLevel: true, 
+       icon: "fa-solid fa-location-dot", 
        strings: {
 	   title: "Voir ma position"
        },
@@ -1036,13 +1020,14 @@ ${alerts.length>0 ? '<a href="#" onclick="setAlertsForRoute(\''+routeIdForAlerts
 
    let first=1;
    // Load realtime data (3 sources: updates, vehicles, alerts)
+   // Refresh update data every RT_REFRESH_RATE seconds
    fetchRealTimeUpdateData();
-   // Rafraîchir les donnees de delays toutes les RT_REFRESH_RATE secondes
    setInterval(fetchRealTimeUpdateData, RT_REFRESH_RATE);
+   // Refresh vehicle position data every RT_REFRESH_RATE seconds
    fetchRealTimeBusData();
-   // Rafraîchir les donnees de position toutes les RT_REFRESH_RATE secondes
    setInterval(fetchRealTimeBusData, RT_REFRESH_RATE);
-   fetchRealTimeAlertData(); //we only fetch alerts once in the session
+   // Fetch alerts only once for the session
+   fetchRealTimeAlertData(); 
    
    document.getElementById('close-side-btn').addEventListener('click', () => {
        document.getElementById('side-panel').classList.remove('open');
