@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr">
-<head>
+    <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TECmap : Carte des transports en commun en temps réel</title>
@@ -459,7 +459,7 @@
    // Clear bus filter
    function clearFilter() {
        document.getElementById('busFilter').value = '';
-       fetchRealTimeBusData(); // Refresh data to refresh the map after clearing the filter
+       fetchRealTimeBusData(0); // Refresh data to refresh the map after clearing the filter
    }
    
    // Compute minutes sinces bus started (deprecated, not used anymore)
@@ -524,13 +524,12 @@
        }
        return "gray"; // default value
    }
-
-   function updateColorMode() {
-       const select = document.getElementById("colorModeSelect");
-       currentColorMode = select.value;
-       // On peut rafraîchir les couleurs des marqueurs si nécessaire :
-       //refreshBusMarkers();
-   }
+     
+     function updateColorMode() {
+	 const select = document.getElementById("colorModeSelect");
+	 currentColorMode = select.value;
+	 fetchRealTimeBusData(0);
+     }
    
    
    // Outputs a color for vehicle icon based on speed (not used anymore but might be a future option to display speed map rather than delay map)
@@ -639,16 +638,13 @@
        return route ? route.rsn : " ";
    }
 
-   
 
-   
+     // ---------------------------------------------------------------------------------------------
+     // Utils functions to load and transform GTFS data
 
-   // ---------------------------------------------------------------------------------------------
-   // Utils functions to load and transform GTFS data
-
-   // Generic function to load GTFS protobuf
-   async function loadGTFSProtobuf(url) {
-       try {
+     // Generic function to load GTFS protobuf
+     async function loadGTFSProtobuf(url) {
+	 try {
            const response = await fetch(url);
            const buffer = await response.arrayBuffer();
            const root = await protobuf.load("data/gtfs-realtime.proto");  // Charger le .proto
@@ -684,9 +680,19 @@
        });
    }
 
-   // Function to map protobuf data to object
-   function transformVehicleGTFSData(gtfsData) {
-       return {
+     // Schedule next fetch of data to delay when dblclick on marker for multiple bus selection
+     function scheduleNextFetch(delay = RT_REFRESH_RATE) {
+	 clearTimeout(rtRefreshTimeout);
+	 rtRefreshTimeout = setTimeout(() => {
+	     fetchRealTimeBusData();
+	     scheduleNextFetch(); // relaunch loop
+	 }, delay);
+     }
+
+     
+     // Function to map protobuf data to object
+     function transformVehicleGTFSData(gtfsData) {
+	 return {
            vehicles: gtfsData.entity.map(entity => ({
                vehicleId: entity.vehicle?.id || entity.id, // Certains objets semblent avoir vehicle.id, d'autres non
 	       latitude: entity.vehicle.position?.latitude || null,
@@ -881,7 +887,7 @@
 	   // Uses external API to get real-time json data
 	   if (update) { //when using filter, we don't reload gtfs but apply filter on current data
 	       await loadGTFSVehicleData();
-	       formattedVehicleData = transformVehicleGTFSData(gtfsVehicleData);
+	       if (gtfsVehicleData != null) formattedVehicleData = transformVehicleGTFSData(gtfsVehicleData);
 	       //console.log(JSON.stringify(formattedVehicleData, null, 2)); // Affichage formaté en JSON
 	   }
 	   
@@ -973,9 +979,18 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
                    busMarkers[vehicleId] = L.marker([latitude, longitude], { icon: busIcon}).addTo(map)
 		                            .bindTooltip(`<i class="fas fa-arrow-right"></i> <b>${endPoint}</b> <br> ${filterStopTime}`, { permanent: tooltip_permanent, direction: "top" })
 					    .bindPopup(popupContent);
-               }
 
-           });
+		   // Dbl-click on marker puts in into the filter, delay nextFetch allows to dblclick to add other busmarkers in filter
+		   busMarkers[vehicleId].on("dblclick", function () {
+		       const filterInput = document.getElementById("busFilter");
+		       filterInput.value += bus.trip.route_short_name+" ";
+		       filterInput.style.backgroundColor = "#d4f8d4";
+		       setTimeout(() => (filterInput.style.backgroundColor = "white"), 600);
+		       scheduleNextFetch(RT_REFRESH_RATE);
+		   }); 
+
+	       }
+	   });
 	   //update the number of visible bus in current Map view
 	   let bounds = map.getBounds();
 	   let visibleBuses = busMarkers.filter(marker => bounds.contains(marker.getLatLng()));
@@ -999,6 +1014,8 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
    //Load theoretical schedule first (large file)
    loadScheduleFile();
 
+   let rtRefreshTimeout = RT_REFRESH_RATE;
+     
    let gtfsVehicleData = null;
    let formattedVehicleData = null;
    let formattedAlertData = null;
@@ -1088,11 +1105,12 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
    setInterval(fetchRealTimeUpdateData, RT_REFRESH_RATE);
    // Refresh vehicle position data every RT_REFRESH_RATE seconds
    fetchRealTimeBusData();
-   setInterval(fetchRealTimeBusData, RT_REFRESH_RATE);
+   scheduleNextFetch();
+   //setInterval(fetchRealTimeBusData, RT_REFRESH_RATE);
    // Fetch alerts only once for the session
    fetchRealTimeAlertData(); 
-   
-   document.getElementById('close-side-btn').addEventListener('click', () => {
+     
+     document.getElementById('close-side-btn').addEventListener('click', () => {
        document.getElementById('side-panel').classList.remove('open');
    });
    
