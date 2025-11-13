@@ -256,31 +256,87 @@
        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
        return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
    }
-   
-   // Dynamic load of the right schedule file based on day of the week and week number (holidays/regular)
-   function loadScheduleFile() {
-       const holidayWeeks = [1, 9, 10, 18, 19, 28, 29, 30, 31, 32, 33, 34, 43, 44, 52]; //Belgium holiday weeks in 2025
-       const dayOfWeek = new Date().getDay();
-       const currentWeek = getISOWeekNumber();
-       let suffix = holidayWeeks.includes(currentWeek) ? "_VAC" : "";
-       let scriptFile = "data/stop_times-SEM"+suffix+".js"; // Default schedule for weekdays
-       
-       if (dayOfWeek === 0) { // Dimanche holidays / not holidays
-	   scriptFile = "data/stop_times-DIM.js";
-       } else if (dayOfWeek === 6) { // Saturday
-	   scriptFile = "data/stop_times-SAM.js";
-       } else if (dayOfWeek === 3 && !holidayWeeks.includes(currentWeek)) { // Mercredi, wednesday in SEM during holidays
-	   scriptFile = "data/stop_times-MER.js";
-       }
 
-       //console.log(scriptFile);
-       // Create and insert script dynamically
-       const script = document.createElement("script");
-       script.src = scriptFile;
-       script.onload = () => console.log(`Horaires théoriques chargés depuis ${scriptFile}`);
-       script.onerror = () => console.error(`Erreur de chargement du fichier ${scriptFile}`);
-       document.head.appendChild(script);
+
+   function addDays(baseDate, days) {
+	 const result = new Date(baseDate);
+	 result.setDate(result.getDate() + days);
+	 return result;
    }
+     
+     function isPublicHoliday(date = new Date()) {
+	 //Check if the day is a legal public holiday in Belgium e.g. 01/05, 21/07, 25/12,
+	 const year = date.getFullYear();
+	 const easter = getEasterDate(year);
+	 
+	 const fixedHolidays = [
+	     "01/01", // new year
+	     "01/05", // labor day
+	     "21/07", // national belgian day
+	     "15/08", // assumption
+	     "01/11", // all saints
+	     "11/11", // armistice
+	     "25/12"  // christmas
+	 ];
+	 const movableHolidays = [
+	     easter,                  // easter sunday
+	     addDays(easter, 1),      // easter monday
+	     addDays(easter, 39),     // ascension
+	     addDays(easter, 49),     // pentecost
+	     addDays(easter, 50)      // monday pentecost
+	 ].map(d => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`);
+
+	 const day = String(date.getDate()).padStart(2, "0");
+	 const month = String(date.getMonth() + 1).padStart(2, "0");
+	 const dayMonth = `${day}/${month}`;
+	 return fixedHolidays.includes(dayMonth) || movableHolidays.includes(dayMonth);
+     }
+
+     function getEasterDate(y) { // Butcher's algorithm for determining the date of Easter
+	 const f = Math.floor;
+	 const a = y % 19;
+	 const b = f(y / 100);
+	 const c = y % 100;
+	 const d = f(b / 4);
+	 const e = b % 4;
+	 const f1 = f((b + 8) / 25);
+	 const g = f((b - f1 + 1) / 3);
+	 const h = (19 * a + b - d - g + 15) % 30;
+	 const i = f(c / 4);
+	 const k = c % 4;
+	 const l = (32 + 2 * e + 2 * i - h - k) % 7;
+	 const m = f((a + 11 * h + 22 * l) / 451);
+	 const month = f((h + l - 7 * m + 114) / 31);
+	 const day = ((h + l - 7 * m + 114) % 31) + 1;
+	 return new Date(y, month - 1, day);
+     }
+     
+     // Dynamic load of the right schedule file based on day of the week and week number (holidays/regular)
+     function loadScheduleFile() {
+	 const holidayWeeks = [1, 9, 10, 18, 19, 28, 29, 30, 31, 32, 33, 34, 43, 44, 52]; //Belgium holiday weeks in 2025
+	 const today = new Date();
+	 const dayOfWeek = today.getDay();
+	 const currentWeek = getISOWeekNumber(today);
+	 const isHoliday = isPublicHoliday(today);
+	 let suffix = holidayWeeks.includes(currentWeek) ? "_VAC" : "";
+	 let scriptFile = "data/stop_times-SEM"+suffix+".js"; // Default schedule for weekdays
+	 
+	 
+	 if (dayOfWeek === 0 || isHoliday) { // Dimanche holidays / not holidays ; legal public holidays
+	     scriptFile = "data/stop_times-DIM.js";
+	 } else if (dayOfWeek === 6) { // Saturday
+	     scriptFile = "data/stop_times-SAM.js";
+	 } else if (dayOfWeek === 3 && !holidayWeeks.includes(currentWeek)) { // Mercredi, wednesday in SEM during holidays
+	     scriptFile = "data/stop_times-MER.js";
+	 }
+
+	 // Create and insert script dynamically
+	 const script = document.createElement("script");
+	 script.src = scriptFile;
+	 script.onload = () => console.log(`Horaires théoriques chargés depuis ${scriptFile}`);
+	 script.onerror = () => console.error(`Erreur de chargement du fichier ${scriptFile}`);
+	 document.head.appendChild(script);
+     }
 
    function parseDate(dateStr, timeStr = "00:00") {
        const [day, month, year] = dateStr.split(" ")[0].split("/");
@@ -365,7 +421,6 @@
        const panel = document.getElementById('side-panel');
        const content = document.getElementById('side-content');
        const title = document.getElementById('side-title');
-       //console.log(routeId);
        content.innerHTML = '';
        title.textContent = `Alertes ligne ${routeId}`;
 
