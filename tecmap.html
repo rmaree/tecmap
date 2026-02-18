@@ -313,7 +313,16 @@
      
      // Dynamic load of the right schedule file based on day of the week and week number (holidays/regular)
      function loadScheduleFile() {
-	 const holidayWeeks = [1, 9, 10, 18, 19, 28, 29, 30, 31, 32, 33, 34, 43, 44, 52]; //Belgium holiday weeks in 2025
+	 //to be adapted each year (TODO: automatic)
+	 //const holidayWeeks = [1, 9, 10, 18, 19, 28, 29, 30, 31, 32, 33, 34, 43, 44, 52]; //Belgium holiday weeks in 2025
+	 const holidayWeeks = [
+	     1,     // christmas, new year 2026
+	     7, 8,  // carnaval 
+	     14, 15,// easter
+	     26,27,28,29,30,31,32,33,34, // summer holidays
+	     44,45, // autumn
+	     52,53  // christmas
+	 ];
 	 const today = new Date();
 	 const dayOfWeek = today.getDay();
 	 const currentWeek = getISOWeekNumber(today);
@@ -425,11 +434,11 @@
        title.textContent = `Alertes ligne ${routeId}`;
 
        const alerts = alertsByRoute[routeId] || [];
-       //we sort and clean alerts each time the panel is open
-       const sorted_alerts = sortCleanAlerts(alerts);
+	 //we sort and clean alerts each time the panel is open
+	 const sorted_alerts = sortCleanAlerts(alerts);
 
-       if (alerts.length === 0) {
-	   content.innerHTML = '<p>Aucune alerte active.</p>';
+	 if (alerts.length === 0) {
+	     content.innerHTML = '<p>Aucune alerte active.</p>';
        } else {
 	   let stopNames = ' ';
 	   sorted_alerts.forEach(alert => {
@@ -874,9 +883,9 @@
 
    //Load update GTFS-RT data to get delays
    async function loadGTFSUpdateData() {
-       gtfsUpdateData = await loadGTFSProtobuf("https://gtfsrt.tectime.be/proto/RealTime/trips?key=02B64654B77F4781BCE7D12CA8EB7EDA");
-       //console.log("Données Updates chargées :", gtfsUpdateData);
-   }
+	 gtfsUpdateData = await loadGTFSProtobuf(RT_UPDATE_API_URL);
+	 //console.log("Données Updates chargées :", gtfsUpdateData);
+     }
 
 
    async function fetchRealTimeUpdateData() {
@@ -1025,7 +1034,7 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
 	       // Put the marker on the map
 	       if (busMarkers[vehicleId]) {
                    // Update of existing marker // not used anymore since we delete busmarkers?
-		   console.log("update marker bus");
+		   //console.log("update marker bus");
                    busMarkers[vehicleId].setLatLng([latitude, longitude])
 					.setPopupContent(popupContent)
 					.setIcon(busIcon);
