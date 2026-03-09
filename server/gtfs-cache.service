@@ -1,0 +1,21 @@
+[Unit]
+Description=GTFS Realtime Cache Server
+After=network.target
+
+[Service]
+Type=simple
+User=gestion
+WorkingDirectory=/opt/gtfs-cache-server
+ExecStart=/home/gestion/.nvm/versions/node/v24.13.1/bin/node /opt/gtfs-cache-server/server.js
+Restart=always
+RestartSec=10
+StandardOutput=null
+StandardError=journal
+SyslogIdentifier=gtfs-cache
+Environment=NODE_ENV=production
+
+# Charger les variables d'environnement depuis le fichier .env
+EnvironmentFile=/opt/gtfs-cache-server/.env
+
+[Install]
+WantedBy=multi-user.target
