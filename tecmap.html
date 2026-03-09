@@ -201,7 +201,6 @@
     <div id="filter-container" style="position: absolute; top: 10px; left: 50px; background: white; padding: 5px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 1000;">
 	<div style="display: flex; align-items: center; gap: 3px; margin-bottom: 4px;">
 	    <input type="text" id="busFilter" placeholder="Filtrer par ligne" oninput="fetchRealTimeBusData(0)" style="flex:1;">
-	    <a href="#" onclick="openStaticSchedule()">⏱</a>
 	    <button onclick="clearFilter()">❌</button>
 	</div>
 	<div style="display: flex; align-items: center; gap: 6px;">
@@ -317,7 +316,7 @@
 	 //const holidayWeeks = [1, 9, 10, 18, 19, 28, 29, 30, 31, 32, 33, 34, 43, 44, 52]; //Belgium holiday weeks in 2025
 	 const holidayWeeks = [
 	     1,     // christmas, new year 2026
-	     7, 8,  // carnaval 
+	     8, 9,  // carnaval 
 	     14, 15,// easter
 	     26,27,28,29,30,31,32,33,34, // summer holidays
 	     44,45, // autumn
@@ -478,13 +477,18 @@
        const schedule = horairesData[tripId];  // horairesData is defined in the loaded .js file
 
        // Retrieve color based on bus delay to display +delay string
-       const busColor = getBusDelayColor(delay);
+	 const busColor = getBusDelayColor(delay);
 
        // Retrieve delay stats for the routeId line
-       const stats = statsByRoute[routeId];
-       const avg = stats.avgDelay.toFixed(1);
-       const color = stats.color; //color attributed to the line given the mean avgdelay
-       
+	 const stats = statsByRoute[routeId];
+	 avg="NA";
+	 color="black";
+	 count=0;
+	 if (stats) {
+	     avg = stats.avgDelay.toFixed(1); 
+	     color = stats.color; //color attributed to the line given the mean avgdelay
+	     count =  stats.count;
+	 }
        
        if (!schedule) {
 	   content.innerHTML = '<p>Aucun horaire trouvé.</p>';
@@ -514,9 +518,9 @@
        `;
 
        // Display stats about delays for this line
-       content.innerHTML += `
-	       <p>Délai pour la ligne ${routeShortId}: <br><span style="color:${color}; font-weight:bold;">${avg} min</span> (moyenne pour ${stats.count} bus)</p>
-       `;  
+       //content.innerHTML += `
+       //	       <p>Délai pour la ligne ${routeShortId}: <br><span style="color:${color}; font-weight:bold;">${avg} min</span> (moyenne pour ${count} bus)</p>
+       //`;  
        panel.classList.add('open');
    }
    
@@ -650,9 +654,10 @@
    }
 
    //Use GTFS-RT data to get delays
-   function estimateDelay(tripId) {
-       return(delayByTrip[tripId]);
-   }
+     function estimateDelay(tripId) {
+	 return delayByTrip[tripId] ?? 0;
+	 //return(delayByTrip[tripId]);
+     }
 
    // Human-readable first stop name of a trip
    function getStartPoint(tripId) {
@@ -721,10 +726,17 @@
        }
    }
 
-   async function loadGTFSVehicleData() {
-       gtfsVehicleData = await loadGTFSProtobuf(RT_VEHICLE_API_URL);
-       //console.log("Données Vehicles chargées :", gtfsVehicleData);
-   }
+     async function loadGTFSVehicleData() {
+	 if (!JSON_DATA_FORMAT) //protobuf
+	     gtfsVehicleData = await loadGTFSProtobuf(RT_VEHICLE_API_URL);
+	 else { //json
+	    //console.log("Fetching vehicle positions from JSON cache server");
+	     const res = await fetch(RT_VEHICLE_API_URL);
+	     const data = await res.json();
+	     gtfsVehicleData = data || {};
+	 }
+     //console.log("Données Vehicles chargées :", gtfsVehicleData);
+     }
 
    async function waitForHorairesData(timeout = 10000, interval = 100) {
        return new Promise((resolve, reject) => {
@@ -757,7 +769,7 @@
      // Function to map protobuf data to object
      function transformVehicleGTFSData(gtfsData) {
 	 return {
-           vehicles: gtfsData.entity.map(entity => ({
+           data: gtfsData.entity.map(entity => ({
                vehicleId: entity.vehicle?.id || entity.id, // Certains objets semblent avoir vehicle.id, d'autres non
 	       latitude: entity.vehicle.position?.latitude || null,
 	       longitude: entity.vehicle.position?.longitude || null,
@@ -795,6 +807,8 @@
        }
        first=0;
        transformAlertGTFSData(gtfsAlertData);
+       //console.log(alertsByRoute);
+	 
    }
 
    // Function to map GTFS-RT alert data into alertsByRoute and alertsByStop objects
@@ -881,17 +895,26 @@
    }
 
 
-   //Load update GTFS-RT data to get delays
-   async function loadGTFSUpdateData() {
-	 gtfsUpdateData = await loadGTFSProtobuf(RT_UPDATE_API_URL);
+
+     //Load update GTFS-RT/JSON data to get delays
+     async function loadGTFSUpdateData() {
+	 if (!JSON_DATA_FORMAT) //protobuf
+	     gtfsUpdateData = await loadGTFSProtobuf(RT_UPDATE_API_URL);
+	 else { //json
+	     //console.log("Fetching delays from JSON cache server");
+	     const res = await fetch(RT_UPDATE_API_URL);
+	     const data = await res.json();
+	     delayByTrip = data.delayByTrip || {};
+	     //console.log(delayByTrip);
+	 }
 	 //console.log("Données Updates chargées :", gtfsUpdateData);
      }
 
 
    async function fetchRealTimeUpdateData() {
-       await loadGTFSUpdateData();
-       transformUpdateGTFSData(gtfsUpdateData,1);
-       //console.log(statsByRoute);
+	 await loadGTFSUpdateData();
+	 if (!JSON_DATA_FORMAT) transformUpdateGTFSData(gtfsUpdateData,1);
+	 //console.log(statsByRoute);
        //console.log(delayByTrip);
    }
    
@@ -951,9 +974,13 @@
 	   // Uses external API to get real-time json data
 	   if (update) { //when using filter, we don't reload gtfs but apply filter on current data
 	       await loadGTFSVehicleData();
-	       if (gtfsVehicleData != null) formattedVehicleData = transformVehicleGTFSData(gtfsVehicleData);
+	       if (gtfsVehicleData != null && !JSON_DATA_FORMAT)
+		   formattedVehicleData = transformVehicleGTFSData(gtfsVehicleData);
 	       //console.log(JSON.stringify(formattedVehicleData, null, 2)); // Affichage formaté en JSON
+	       else //json
+		   formattedVehicleData = gtfsVehicleData;
 	   }
+	   //console.log(formattedVehicleData);
 	   
 	   // Get filter values from the input box 
 	   let tooltip_permanent = 0;
@@ -986,9 +1013,14 @@
 	   first=0;
 
 	   // Loop in real-time formatted vehicle data
-	   formattedVehicleData.vehicles.forEach(bus => {
+	   //formattedVehicleData.vehicles.forEach(bus => {
+	   formattedVehicleData.data.forEach(bus => {
 	       const { vehicleId, latitude, longitude, speed, trip, stopId, currentStopSequence, timestamp } = bus;
 
+	       //late client-side set of sn & ln, TO DO: could be set in server side
+	       trip.route_short_name = getRouteShortName(trip.routeId) || null;
+	       trip.route_long_name= getRouteLongName(trip.routeId) || null;
+		     
 	       // If the filter is not null, we skip bus lines which are not in the filter
 	       if (filterValues.length > 0 && filterValues[0] != '' && !(trip.route_short_name.toString() in filterLineStops)) return;
 	       
@@ -1091,9 +1123,11 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
    let delayByTrip = {};
    let statsByRoute = {};
 
+   const JSON_DATA_FORMAT=0; //0:protobuf, 1:json
+     
    const COLOR_MODES = {
-       DELAY: "delay",
-       SPEED: "speed"
+	 DELAY: "delay",
+	 SPEED: "speed"
    };
    let currentColorMode = COLOR_MODES.DELAY; // default coloring mode is based on delay
 
