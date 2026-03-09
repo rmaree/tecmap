@@ -16,7 +16,7 @@ This has been tested with GTFS static transit data for Wallonia in Belgium (TEC,
 including routes and stops, and real-time traffic information assumed to be accessible through an API that returns it in ProtoBuf format.
 
 
-## Data preparation
+## Data preparation on the client side
 1. Create `data/` local directory
    
 2. Download into `data/` local directory GTFS static routes and stops data (latest version from [https://beltac.tec-wl.be](https://beltac.tec-wl.be/Current%20GTFS/) or [https://busmaps.com/en/belgium/TEC-Transit/tec-transit](https://busmaps.com/en/belgium/TEC-Transit/tec-transit) )
@@ -35,7 +35,7 @@ including routes and stops, and real-time traffic information assumed to be acce
 
 ## Edit tecmap.html
 1. Edit the `loadScheduleFile()` function in **tecmap.html** if local files are not located in data/ or named in another way if you modified the convert_data.py script.
-3. Edit **RT_VEHICLE_API_URL** and **RT_ALERT_API_URL** in **config.js** so that it refers to the API endpoints that returns real-time traffic data (vehicle positions, and alerts) in ProtoBuf format using the aforementioned Protocol definition file. In our code function transformVehicleGTFSData and transformAlertGTFSData, we convert the Protobuf data into a JSON structure for easier manipulation, formatted as follows for Vehicles:
+3. Edit **RT_VEHICLE_API_URL**, **RT_ALERT_API_URL**, **RT_UPDATE_API_URL** in **config.js** so that it refers to the API endpoints that returns real-time traffic data (vehicle positions, alerts, and updates/delays) either in ProtoBuf format (by default) using the aforementioned Protocol definition file, or in JSON format (if you install the cache server in which case you should edit tecmap.html and set JSON_DATA_FORMAT=1;). If the remote data format is ProtoBug functions transformVehicleGTFSData and transformAlertGTFSData convert the Protobuf data into a JSON structure for easier manipulation, e.g. formatted as follows for Vehicles:
 
 ```
 {
@@ -84,6 +84,10 @@ including routes and stops, and real-time traffic information assumed to be acce
 
 ## Run locally
 Open the tecmap.html page in your desktop computer's browser. Or copy the HTML page and data/ to a web server for remote access e.g. using your smartphone.
+
+
+## Run a cache server
+In the server/ directory, we provide prototype code for a simple server installation that acts as a cache so that multiple clients can access real-time data using the same unique API key you obtained from your public transport data provider. It is useful when you want to share the client map with multiple individuals to avoid API limitations (too many requests). This server requests data every RT_REFRESH_RATE to the main data source API endpoitns specified in the .env file, and provides public API endpoints: /status , api/alerts/raw (protobuf), api/vehicles (json), api/delays (json). The servers uses node.js and nginx, configuration files are provided.
 
 ## Future plans, contact
 I am aware of the limitations of such a client-side approach. 
