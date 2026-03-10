@@ -38,6 +38,8 @@
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.js"></script>
+
+    <script src="leaflet-tilelayer-colorfilter-global.min.js"></script>
     
     <!-- Style FontAwesome pour les icônes -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -1123,7 +1125,7 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
    let delayByTrip = {};
    let statsByRoute = {};
 
-   const JSON_DATA_FORMAT=0; //0:protobuf, 1:json
+   const JSON_DATA_FORMAT=1; //0:protobuf, 1:json
      
    const COLOR_MODES = {
 	 DELAY: "delay",
@@ -1132,7 +1134,7 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
    let currentColorMode = COLOR_MODES.DELAY; // default coloring mode is based on delay
 
    const defaultCoords = [50.63, 5.56];
-   const defaultZoom = 14;
+   const defaultZoom = 12;
    var osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
        maxZoom: 19,
        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -1147,13 +1149,15 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
 				  { maxZoom: 19,
 				    attribution: '&copy; <a href="https://github.com/cyclosm/cyclosm-cartocss-style/releases">CyclOSM</a>'});
 
-   var opnvLayer = L.tileLayer('https://tile.memomaps.de/tilegen/{z}/{x}/{y}.png',
-			       { maxZoom: 19,
-				 attribution: '&copy; Öpnvkarte'});
+     var opnvLayer = L.tileLayer('https://tile.memomaps.de/tilegen/{z}/{x}/{y}.png',
+				 { maxZoom: 19,
+				   attribution: '&copy; Öpnvkarte Memomaps',
+				   colorFilter: ['bright:95%','contrast:100%','opacity:70%','saturate:100%','sepia:12%']
+     });
 
-   // tileLayer from thunderforest can be used using an apikey to be set in config.js file
-   if (TILE_API_KEY) {
-       var transportTileLayer = L.tileLayer('https://tile.thunderforest.com/transport/{z}/{x}/{y}.png?apikey='+TILE_API_KEY, {
+     // tileLayer from thunderforest can be used using an apikey to be set in config.js file
+     if (TILE_API_KEY) {
+	 var transportTileLayer = L.tileLayer('https://tile.thunderforest.com/transport/{z}/{x}/{y}.png?apikey='+TILE_API_KEY, {
      	   attribution: '© OpenStreetMap contributors, &copy; <a href="https://www.thunderforest.com/maps/transport/">Thunderforest</a>',
    	   maxZoom: 22
        });
