@@ -1137,34 +1137,34 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
    const defaultZoom = 12;
    var osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
        maxZoom: 19,
-       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+       attribution: '© <a href="https://www.openstreetmap.org/">OpenStreetMap contributors</a>'
    });
 
    var osmHOTLayer = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
-       maxZoom: 19,
-       attribution: '&copy; HOT hosted by OSM France'});
+	 maxZoom: 19,
+	 attribution: '&copy; HOT hosted by OSM France - &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'});
 
 
-   var cyclOSMLayer = L.tileLayer('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png',
-				  { maxZoom: 19,
-				    attribution: '&copy; <a href="https://github.com/cyclosm/cyclosm-cartocss-style/releases">CyclOSM</a>'});
+     var cyclOSMLayer = L.tileLayer('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png',
+				    { maxZoom: 19,
+				      attribution: '&copy; <a href="https://github.com/cyclosm/cyclosm-cartocss-style/releases">CyclOSM</a> - &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'});
 
      var opnvLayer = L.tileLayer('https://tile.memomaps.de/tilegen/{z}/{x}/{y}.png',
 				 { maxZoom: 19,
-				   attribution: '&copy; Öpnvkarte Memomaps',
+				   attribution: '&copy; Öpnvkarte Memomaps - &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>',
 				   colorFilter: ['bright:95%','contrast:100%','opacity:70%','saturate:100%','sepia:12%']
      });
 
      // tileLayer from thunderforest can be used using an apikey to be set in config.js file
      if (TILE_API_KEY) {
 	 var transportTileLayer = L.tileLayer('https://tile.thunderforest.com/transport/{z}/{x}/{y}.png?apikey='+TILE_API_KEY, {
-     	   attribution: '© OpenStreetMap contributors, &copy; <a href="https://www.thunderforest.com/maps/transport/">Thunderforest</a>',
-   	   maxZoom: 22
-       });
-       var cycleMapTileLayer = L.tileLayer('https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey='+TILE_API_KEY, {
-	   attribution: '&copy; <a href="https://www.thunderforest.com/maps/transport/">Thunderforest</a>',
-   	   maxZoom: 22});
-       var defaultLayer = transportTileLayer;
+     	     attribution: '© <a href="https://www.openstreetmap.org/">OpenStreetMap</a>, &copy; <a href="https://www.thunderforest.com/maps/transport/">Thunderforest</a>',
+   	     maxZoom: 22
+	 });
+	 var cycleMapTileLayer = L.tileLayer('https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey='+TILE_API_KEY, {
+	     attribution: '&copy; <a href="https://www.thunderforest.com/maps/transport/">Thunderforest</a> - <a href="https://www.openstreetmap.org/">OpenStreetMap</a>',
+   	     maxZoom: 22});
+	 var defaultLayer = transportTileLayer;
    }
    else { // we use opnvLayer as default
        var transportTileLayer = opnvLayer;
