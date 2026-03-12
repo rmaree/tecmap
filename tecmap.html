@@ -425,7 +425,7 @@
 		 pour afficher tous les bus actuellement en chemin de ces deux lignes. Avec le nom d'un arrêt vous pouvez aussi obtenir
 		 l'heure d'arrivée prévue des bus actuellement en chemin, en ajoutant quelques caractères de son nom par exemple "<b>58?guill B2?guill</b>" pour l'arrêt Guillemins. Les noms des arrêts sont ceux affichés dans le panel "Voir les horaires temps-réel de ce bus".</p>
 	     
-	     <h4>Code source et données</h4>
+	     <h4>Code source et données</<h4>
 	     <p>Le code-source de ce prototype est disponible sur <a href="https://github.com/rmaree/tecmap">GitHub</a>.
 		 Les données temps-réel proviennent du <a href="https://www.letec.be/View/Open_Data_of_TEC/4296">site open data de la TEC</a>.
 		     Ce projet personnel n'est pas un outil officiel de la TEC ni de l'ULiège.</p>
@@ -996,6 +996,7 @@
 	   let tooltip_permanent = 0;
 	   const filterLineStops = {};
 	   let filterValues = document.getElementById('busFilter').value.split(" ").map(num => num.trim()); // Convertit en tableau
+	   console.log(filterValues);
 	   // Check the filter string to look for ? to identify specific busstop
 	   if (filterValues.length > 0 && filterValues[0] != ''){
 	       tooltip_permanent = 1;
@@ -1025,7 +1026,8 @@
 	   // Loop in real-time formatted vehicle data
 	   //formattedVehicleData.vehicles.forEach(bus => {
 	   formattedVehicleData.data.forEach(bus => {
-	       const { vehicleId, latitude, longitude, speed, trip, stopId, currentStopSequence, timestamp } = bus;
+	       //const { vehicleId, latitude, longitude, speed, trip, stopId, currentStopSequence, timestamp } = bus;
+	       const { vehicleId, latitude, longitude, speed, trip, stopId, currentStopSequence } = bus;
 
 	       //late client-side set of sn & ln, TO DO: could be set in server side
 	       trip.route_short_name = getRouteShortName(trip.routeId) || null;

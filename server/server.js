@@ -81,13 +81,13 @@ async function fetchAndConvertVehicles() {
           longitude: position?.longitude || null,
 	  speed: position?.speed || null,
 	  currentStopSequence: vehicle.currentStopSequence || null,
-          timestamp: vehicle.timestamp?.toNumber() || null,
+          //timestamp: vehicle.timestamp?.toNumber() || null,
 	  stopId: vehicle.stopId || null,
 	  trip: vehicle.trip? {
               tripId: vehicle.trip.tripId || null,
               routeId: vehicle.trip.routeId || null,
-              startTime: vehicle.trip.startTime || null,
-              startDate: vehicle.trip.startDate || null,
+              //startTime: vehicle.trip.startTime || null,
+              //startDate: vehicle.trip.startDate || null,
 	      //route_short_name and route_long_name are computed in client who have static gtfs data
 	      //route_short_name: utils.getRouteShortName(vehicle.trip.routeId) || null, // TO DO server-side
 	      //route_long_name: utils.getRouteLongName(vehicle.trip.routeId) || null,   // TO DO server-side
