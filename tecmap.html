@@ -403,27 +403,38 @@
        const title = document.getElementById('side-title');
 
        content.innerHTML = '';
-       title.textContent = `Légende des modes couleurs`;
-       
-       content.innerHTML = `
-	   <h4>Mode Retard/Avance</h4>
-	   <ul style="list-style:none; padding-left:0;">
-	       <li><span style="color:blue;">■</span> En avance</li>
-	       <li><span style="color:green;">■</span> À l'heure</li>
-	       <li><span style="color:orange;">■</span> Retard entre 1 et 5 min</li>
-	       <li><span style="color:red;">■</span> Retard > 5 min</li>
-	   </ul>
+       title.textContent = `Informations / Aide `;
+	 
+	 content.innerHTML = `
+	     <h4>Mode Retard/Avance</h4>
+	     <ul style="list-style:none; padding-left:0;">
+		 <li><span style="color:blue;">■</span> En avance</li>
+		 <li><span style="color:green;">■</span> À l'heure</li>
+		 <li><span style="color:orange;">■</span> Retard entre 1 et 5 min</li>
+		 <li><span style="color:red;">■</span> Retard > 5 min</li>
+	     </ul>
 
-	   <h4>Mode Vitesse</h4>
-	   <ul style="list-style:none; padding-left:0;">
-	       <li><span style="color:grey">■</span> Vitesse non disponible</li>
-	       <li><span style="color:black">■</span> Lent (< 15 km/h)</li>
-	       <li><span style="color:green">■</span> Normal</li>
-	       <li><span style="color:limegreen">■</span> Très rapide (> 90 km/h)</li>
-	   </ul>
-       `;
-       
-       panel.classList.add('open');
+	     <h4>Mode Vitesse</h4>
+	     <ul style="list-style:none; padding-left:0;">
+		 <li><span style="color:grey">■</span> Vitesse non disponible</li>
+		 <li><span style="color:black">■</span> Lent (< 15 km/h)</li>
+		 <li><span style="color:green">■</span> Normal</li>
+		 <li><span style="color:limegreen">■</span> Très rapide (> 90 km/h)</li>
+	     </ul>
+
+
+	     <h4>Utilisation des filtres</h4>
+	     <p>En haut à gauche de l'écran vous pouvez filtrer les lignes de bus affichées graĉe à leur numéro, par exemple "<b>21 58</b>" (sans les guillemets)
+	     pour afficher tous les bus actuellement en chemin de ces deux lignes. Si vous connaissez le nom d'un arrêt vous pouvez aussi obtenir
+	     l'heure prévue d'arrivée des bus actuellement en chemin, en indiquant quelques caractères de son nom par exemple "<b>58?guill B2?guill</b>" pour l'heure d'arrivée à l'arrêt Guillemins. Les noms des arrêts sont ceux affichés dans le panel "Voir les horaires temps-réel de ce bus".</p>
+	     
+	     <h4>Code source et données</h4>
+	     <p>Le code-source de ce prototype est disponible sur <a href="https://github.com/rmaree/tecmap">GitHub</a>.
+	     Les données temps-réel proviennent de la TEC.
+	     Ce projet personnel n'est pas un outil officiel de la TEC ni de l'ULiège.</p>
+	 `;
+	 
+	 panel.classList.add('open');
    }
    
    //Fill the side panel with alert data related to the routeId
@@ -474,7 +485,7 @@
        content.innerHTML = '';
        const operator = "TEC"
        title.textContent = `Horaire de ce bus ligne ${routeShortId}  `; 
-       
+
        // Retrieve schedule for this tripId based on theoretical static schedule
        const schedule = horairesData[tripId];  // horairesData is defined in the loaded .js file
 
