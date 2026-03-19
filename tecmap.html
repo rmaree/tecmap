@@ -195,6 +195,18 @@
 	 cursor: pointer;
      }
 
+     .leaflet-tooltip {
+	 padding: 1px 4px;
+	 line-height: 1;
+	 border-radius: 4px;
+     }
+
+     .leaflet-tooltip {
+	 padding: 1px 4px;
+	 line-height: 1;
+	 white-space: nowrap; /* évite les retours à la ligne */
+     }
+
 
     </style>
 </head>
@@ -679,19 +691,27 @@
 
    // Human-readable last stop name (terminus) of a trip
    function getEndPoint(tripId) {
-       const schedule = horairesData[tripId]; // horairesData loaded with stop ids
-       if (schedule)
-	   return getStopName(schedule[(schedule.length)-1].s,stopsData)  // s = stopId
-       else return " "
-   }
-
-   //Make string delay with brackets and sign
-   function printDelay(delay) {
-       let strDelay = '';
-       if (delay > 0) strDelay = '(+'+delay+')';
-       else if (delay < 0) strDelay = '('+delay+')'; //delay is negative
-       return strDelay;
-   }
+	 const schedule = horairesData[tripId]; // horairesData loaded with stop ids
+	 if (schedule) {
+	     return getStopName(schedule[(schedule.length)-1].s,stopsData)  // s = stopId
+	     /* const getFirstPart = (str) => str.split(' ')[0];
+		const startStop = getStopName(schedule[0].s, stopsData);
+		const endStop = getStopName(schedule[schedule.length - 1].s, stopsData);
+		const startCity = getFirstPart(startStop);
+		const endCity = getFirstPart(endStop);
+		if (startCity === endCity) return endStop;
+		else return endCity; */
+	 }
+	 else return " "
+     }
+     
+     //Make string delay with brackets and sign
+     function printDelay(delay) {
+	 let strDelay = '';
+	 if (delay > 0) strDelay = '(+'+delay+')';
+	 else if (delay < 0) strDelay = '('+delay+')'; //delay is negative
+	 return strDelay;
+     }
 
    //Returns string with extract sheduled time at precise stop + delay
    function getStopTimeString(schedule,currentStopSequence,delay,filterStop) {
@@ -748,7 +768,7 @@
      //console.log("Données Vehicles chargées :", gtfsVehicleData);
      }
 
-   async function waitForHorairesData(timeout = 10000, interval = 100) {
+   async function waitForHorairesData(timeout = 20000, interval = 100) {
        return new Promise((resolve, reject) => {
            const startTime = Date.now();
 
@@ -996,7 +1016,6 @@
 	   let tooltip_permanent = 0;
 	   const filterLineStops = {};
 	   let filterValues = document.getElementById('busFilter').value.split(" ").map(num => num.trim()); // Convertit en tableau
-	   console.log(filterValues);
 	   // Check the filter string to look for ? to identify specific busstop
 	   if (filterValues.length > 0 && filterValues[0] != ''){
 	       tooltip_permanent = 1;
