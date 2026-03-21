@@ -693,7 +693,7 @@
    function getEndPoint(tripId) {
 	 const schedule = horairesData[tripId]; // horairesData loaded with stop ids
 	 if (schedule) {
-	     return getStopName(schedule[(schedule.length)-1].s,stopsData)  // s = stopId
+	     return getStopName(schedule[(schedule.length)-1].s,stopsData).replace('(terminus)', '').trim();  // s = stopId
 	     /* const getFirstPart = (str) => str.split(' ')[0];
 		const startStop = getStopName(schedule[0].s, stopsData);
 		const endStop = getStopName(schedule[schedule.length - 1].s, stopsData);
