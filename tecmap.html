@@ -499,7 +499,7 @@
        const schedule = horairesData[tripId];  // horairesData is defined in the loaded .js file
 
        // Retrieve color based on bus delay to display +delay string
-	 const busColor = getBusDelayColor(delay);
+	 const busColor = getBusDelayColor(delay,currentStopSequence);
 
        // Retrieve delay stats for the routeId line
 	 const stats = statsByRoute[routeId];
@@ -606,14 +606,14 @@
    }
 
    // Call color function based on coloring mode
-   function getBusColor(delay, speed) {
-       if (currentColorMode === COLOR_MODES.DELAY) {
-	   return getBusDelayColor(delay);
-       } else if (currentColorMode === COLOR_MODES.SPEED) {
-	   return getBusSpeedColor(speed);
-       }
-       return "gray"; // default value
-   }
+     function getBusColor(delay, speed, stopSequence) {
+	 if (currentColorMode === COLOR_MODES.DELAY) {
+	     return getBusDelayColor(delay,stopSequence);
+	 } else if (currentColorMode === COLOR_MODES.SPEED) {
+	     return getBusSpeedColor(speed);
+	 }
+	 return "gray"; // default value
+     }
      
      function updateColorMode() {
 	 const select = document.getElementById("colorModeSelect");
@@ -631,12 +631,20 @@
    }
 
    // Outputs a color for vehicle based on delay
-   function getBusDelayColor(delay) {
-       if (delay > 0 && delay < 5) return "orange"; 
-       else if (delay >= 5) return "red";
-       else if (delay < 0) return "darkblue";
-       else return "green";
-   }
+     function getBusDelayColor(delay,stopSequence) {
+	 if (stopSequence > 1) {
+	     if (delay > 0 && delay < 5) return "orange"; 
+	     else if (delay >= 5) return "red";
+	     else if (delay < 0) return "darkblue";
+	     else return "green";
+	 }
+	 else if (stopSequence <= 1) {
+	     if (delay > 0 && delay < 5) return "orange"; 
+	     else if (delay >= 5) return "red";
+	     else return "grey";
+	 }
+	 
+     }
 
    // Convert UNIX timestamp UNIX into human-readable time
    function timestampToTime(timestamp) {
@@ -720,7 +728,7 @@
 	   schedule.slice(currentStopSequence-1,schedule.length).forEach(entry => {  // we slice the schedule to reduce search in remaining stops
 	       const stopName = getStopName(entry.s,stopsData);
 	       if (stopName.toLowerCase().includes(filterStop.toLowerCase())) {
-		   output = `${stopName} ${entry.a.slice(0, 5)} <span style="color: ${getBusDelayColor(delay)}; font-weight: bold;">${printDelay(delay)}</span>`;
+		   output = `${stopName} ${entry.a.slice(0, 5)} <span style="color: ${getBusDelayColor(delay,currentStopSequence)}; font-weight: bold;">${printDelay(delay)}</span>`;
 	       }
 	   }
 	   )
@@ -1076,7 +1084,7 @@
 	       
 	       // Icon and color for bus marker 
 	       //const busColor = getBusDelayColor(delay);
-	       const busColor = getBusColor(delay,bus.speed);
+	       const busColor = getBusColor(delay,bus.speed,bus.currentStopSequence);
 	       const busIcon = makeVehicleIcon(bus, busColor);
 
 	       // Content of the popup when user clicks on bus marker
@@ -1087,8 +1095,8 @@
          <!-- 🚌 Bus ID: ${vehicleId} <br> //-->
          <i class="fas fa-map-marker-alt"></i> Position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} <br>
          <i class="fas fa-tachometer-alt"></i> Vitesse: ${speed ? speed + " km/h" : "N/A"} <br>
-         <i class="fas fa-bus"></i> Prochain arrêt: ${nextStopName} <span style="color:${getBusDelayColor(delay)}; font-weight: bold;">${printDelay(delay)}</span><br>
-         <a href="#" onclick="showTripScheduleInPanel('${trip.routeId}','${trip.route_short_name}','${bus.trip.tripId}', '${bus.currentStopSequence}', '${bus.stopId}', '${delay}', '${filterStop}')"><button style="background:${getBusDelayColor(delay)}; color:#fff; border:none; border-radius:4px; z-index: 1001; cursor:pointer; position: left">
+         <i class="fas fa-bus"></i> Prochain arrêt: ${nextStopName} <span style="color:${getBusDelayColor(delay,bus.currentStopSequence)}; font-weight: bold;">${printDelay(delay)}</span><br>
+         <a href="#" onclick="showTripScheduleInPanel('${trip.routeId}','${trip.route_short_name}','${bus.trip.tripId}', '${bus.currentStopSequence}', '${bus.stopId}', '${delay}', '${filterStop}')"><button style="background:${getBusDelayColor(delay,bus.currentStopSequence)}; color:#fff; border:none; border-radius:4px; z-index: 1001; cursor:pointer; position: left">
 	       🕔 Voir l'horaire temps-réel de ce bus
 	       </button></a><br>
 ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts+'\')"> <button id="open-alert-btn-popup">📢 Voir les alertes sur cette ligne ('+alerts.length+')</button></a><br>': ""}
