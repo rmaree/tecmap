@@ -418,29 +418,31 @@
        title.textContent = `Informations / Aide `;
 	 
 	 content.innerHTML = `<h4>Mode Retard/Avance</h4>
-	     <ul style="list-style:none; padding-left:0;">
-		 <li><span style="color:blue;">■</span> En avance</li>
-		 <li><span style="color:green;">■</span> À l'heure</li>
-		 <li><span style="color:orange;">■</span> Retard entre 1 et 5 min</li>
-		 <li><span style="color:red;">■</span> Retard > 5 min</li>
-	     </ul>
-	     <h4>Mode Vitesse</h4>
-	     <ul style="list-style:none; padding-left:0;">
-		 <li><span style="color:grey">■</span> Vitesse non disponible</li>
-		 <li><span style="color:black">■</span> Lent (< 15 km/h)</li>
-		 <li><span style="color:green">■</span> Normal</li>
-		 <li><span style="color:limegreen">■</span> Très rapide (> 90 km/h)</li>
-	     </ul>
+	 <ul style="list-style:none; padding-left:0;">
+	     <li><span style="color:grey">■</span> Pas encore démarré</li>
+	     <li><span style="color:blue;">■</span> En avance</li>
+	     <li><span style="color:green;">■</span> À l'heure</li>
+	     <li><span style="color:orange;">■</span> Retard entre 1 et 5 min</li>
+	     <li><span style="color:red;">■</span> Retard > 5 min</li>
+	 </ul>
+	 <h4>Mode Vitesse</h4>
+	 <ul style="list-style:none; padding-left:0;">
+	     <li><span style="color:grey">■</span> Vitesse non disponible</li>
+	     <li><span style="color:black">■</span> Lent (< 15 km/h)</li>
+	     <li><span style="color:green">■</span> Normal</li>
+	     <li><span style="color:limegreen">■</span> Très rapide (> 90 km/h)</li>
+	 </ul>
 
-	     <h4>Utilisation des filtres</h4>
-	     <p>Vous pouvez filtrer les lignes de bus affichées graĉe à leur numéro, en indiquant en haut à gauche par ex. "<b>21 58</b>" (sans les guillemets)
-		 pour afficher tous les bus actuellement en chemin de ces deux lignes. Avec le nom d'un arrêt vous pouvez aussi obtenir
-		 l'heure d'arrivée prévue des bus actuellement en chemin, en ajoutant quelques caractères de son nom par exemple "<b>58?guill B2?guill</b>" pour l'arrêt Guillemins. Les noms des arrêts sont ceux affichés dans le panel "Voir les horaires temps-réel de ce bus".</p>
-	     
-	     <h4>Code source et données</<h4>
+	 <h4>Utilisation des filtres</h4>
+	 <p>Vous pouvez filtrer les lignes de bus affichées graĉe à leur numéro, en indiquant en haut à gauche par ex. "<b>21 58</b>" (sans les guillemets)
+	     pour afficher tous les bus actuellement en chemin de ces deux lignes. Avec le nom d'un arrêt vous pouvez aussi obtenir
+	     l'heure d'arrivée prévue des bus actuellement en chemin, en ajoutant quelques caractères de son nom par exemple "<b>58?guill B2?guill</b>" pour l'arrêt Guillemins. Les noms des arrêts sont ceux affichés dans le panel "Voir les horaires temps-réel de ce bus".</p>
+	 
+	 <h4>Code source et données</<h4>
 	     <p>Le code-source de ce prototype est disponible sur <a href="https://github.com/rmaree/tecmap">GitHub</a>.
 		 Les données temps-réel proviennent du <a href="https://www.letec.be/View/Open_Data_of_TEC/4296">site open data de la TEC</a>.
-		     Ce projet personnel n'est pas un outil officiel de la TEC ni de l'ULiège.</p>
+		 Le serveur est hébergé par le SEGI de l'ULiège.
+		 Ce projet personnel n'est pas un outil officiel de la TEC ni de l'ULiège. </p>
 	 `;
 	 
 	 panel.classList.add('open');
@@ -697,18 +699,15 @@
        else return " "
    }
 
-   // Human-readable last stop name (terminus) of a trip
+   // Human-readable, cleaned last stop name (terminus) of a trip
    function getEndPoint(tripId) {
 	 const schedule = horairesData[tripId]; // horairesData loaded with stop ids
 	 if (schedule) {
-	     return getStopName(schedule[(schedule.length)-1].s,stopsData).replace('(terminus)', '').trim();  // s = stopId
-	     /* const getFirstPart = (str) => str.split(' ')[0];
-		const startStop = getStopName(schedule[0].s, stopsData);
-		const endStop = getStopName(schedule[schedule.length - 1].s, stopsData);
-		const startCity = getFirstPart(startStop);
-		const endCity = getFirstPart(endStop);
-		if (startCity === endCity) return endStop;
-		else return endCity; */
+	     let cleaned = getStopName(schedule[(schedule.length)-1].s,stopsData);
+	     cleaned = cleaned.replace('(terminus)', '');
+	     cleaned = cleaned.replace(/\s*terminus$/i, '');
+	     cleaned = cleaned.replace(/\s*-\s*Quai\s+\w+/i, '');
+	     return cleaned.trim();
 	 }
 	 else return " "
      }
