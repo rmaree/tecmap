@@ -19,13 +19,15 @@ import pandas as pd
 import json
 import csv
 import sys
+import os
 
 #Input files (GTFS in text format, e.g. https://opendata.tec-wl.be/Current%20GTFS/)
 stops_csv_input_filename = "data/stops.txt" # Fichier GTFS csv incluant toutes les routes/trips
 routes_csv_input_filename = "data/routes.txt" #fichier GTFS statique CSV incluant toutes les routes
 stop_times_csv_input_filename = "data/stop_times.txt"  # Fichier GTFS csv incluant tous les stop_times
 
-#Output Javascript files 
+#Output Javascript files
+output_dir = "data"
 stops_js_output_filename = "data/stops.js"
 routes_js_output_filename = "data/routes.js" #fichier JS de sortie indexé par route_id
 stop_times_js_output_filename_SEM = "data/stop_times-SEM.js"
@@ -34,20 +36,26 @@ stop_times_js_output_filename_SAM = "data/stop_times-SAM.js"
 stop_times_js_output_filename_DIM = "data/stop_times-DIM.js" # Fichier js de sortie
 stop_times_js_output_filename_VAC = "data/stop_times-SEM_VAC.js"    # Fichier js de sortie, à renommer si e.g. par jour stop_times-DIM.js
 
-#Filters stop_times per days to reduce size of output js stop_times, depending on regions and/or weekdays
-filter_strings_SEM = ["_LG_N3-Sem-", "-SC-N3-Sem-", "-choi-Sem-","BW_A_P2-Sem-"] #regular weeks
-filter_strings_MER = ["-Mercredi-"] #"H25_P2-Sem"]
-filter_strings_SAM = ["-Samedi-"] #"H25_P2-Sem"]
-filter_strings_DIM = ["-Dimanche-"] #"H25_P2-Sem"]
-filter_strings_VAC = ["C2025-choi-Sem-Cong-","SP_VA-Sem-Vac-","-Sem-Cong-","VA-Sem-Vac-","N_2025-VA-Sem-Vac-"] #"_PA_2025-25_SP_VA-Sem-Vac","choi-Sem-Cong"] #holiday weeks
-#filter_strings = ["LG_N3-Sem","SC-N3-Sem-N-3-06","N3-Sem-N-3-06","H25_P2-Sem-N-3"] #regular weeks
-#filter_strings = ["L_PA_2025-25_LG_ME-Mercredi-06","SC-R3-Mercredi-","-choi-Mercredi-","-BW_A_P2-Mercredi-"] #wednesday
-#filter_strings = ["LG_VA-Sem-Vac","-X-2025-VA-Sem-Vac-","-N_2025-VA-Sem-Vac","-Sem-Cong"] #"_PA_2025-25_SP_VA-Sem-Vac","choi-Sem-Cong"] #holiday weeks
+#Filter strings found in stop_times for day types, depends on naming by public transport
+filter_strings_SEM_only = ["-Sem-N-"] #semaines normales
+filter_strings_DIM_only = ["-Dimanche-"]
+filter_strings_MER_only = ["-Mercredi-"]
+filter_strings_SAM_only = ["-Samedi-"]
+filter_strings_SEM_VAC_only = ["-Sem-Vac-","-Sem-Cong"]
 
+#Filter strings found in stop_times corresponding to the different regions, depends on naming by public transport
+REGIONS = {
+    "LG": ["-L_PA_"], #Liege-verviers
+    "CHOI": ["-choi-"], #Charleroi
+    "BW": ["-BW_"], #Brabant Wallon
+    "H": ["-H_"], #Hainaut
+    "NAM": ["-N_"], #Namur
+    "LUX": ["-X-"], #Luxembourg
+}
 
 
 # ----------------------------------------------------------------------
-# Fonction pour convertir routes.txt du format csv à un dictionnaire JS
+# Function to convert csv routes.txt to JS dictionary
 def convert_routes_csv_to_js2(input_csv, output_js):
     routes = {}
     with open(input_csv, mode="r", encoding="utf-8") as csvfile:
@@ -63,45 +71,63 @@ def convert_routes_csv_to_js2(input_csv, output_js):
     
     with open(output_js, mode="w", encoding="utf-8") as jsfile:
         jsfile.write(js_content)
-    print(f"Conversion static routes file terminée '{output_js}' generated successfully.")
+    print(f"Conversion static routes file done '{output_js}' generated successfully.")
 
         
-
-# ----------------------------------------------------------------------
-# Fonction pour convertir stop_times du format csv à un dictionnaire JS
-def convert_stop_times_csv_to_js(csv_filename, js_filename, filter_strings=None):
-    horaires_data = {}
+#--------------------------------------------------------------------------------------
+# Function to convert stop_times from csv line format to JS dictionary, by region and daytypes (filter_strings)
+def convert_stop_times_csv_to_js_by_region(csv_filename, output_dir, day_type, filter_strings, regions):
+    
+    # One dict per region
+    horaires_by_region = {region: {} for region in regions}
 
     with open(csv_filename, mode="r", encoding="utf-8") as csv_file:
         reader = csv.DictReader(csv_file)
         
         for row in reader:
             trip_id = row["trip_id"]
-            
-            # Appliquer le filtre si une chaîne est spécifiée
+
+            # Filter day type
             if filter_strings and not any(f in trip_id for f in filter_strings):
                 continue
+
+            # Detect region
+            matched_region = None
+            for region, patterns in regions.items():
+                if any(p in trip_id for p in patterns):
+                    matched_region = region
+                    break
+
+            if not matched_region:
+                continue  # ignore if no region matched
+
+            horaires_data = horaires_by_region[matched_region]
 
             if trip_id not in horaires_data:
                 horaires_data[trip_id] = []
 
             horaires_data[trip_id].append({
-                "a": row["arrival_time"][:5],  #arrival_time
-                #"d": row["departure_time"][:5], #departure_time
-                "s": row["stop_id"],               #stop_id
-                "seq": int(row["stop_sequence"])  #stop_sequence int
+                "a": row["arrival_time"][:5],
+                "s": row["stop_id"],
+                "seq": int(row["stop_sequence"])
             })
 
-    # Convertir le dictionnaire en JSON formaté
-    #json_data = json.dumps(horaires_data, indent=2, ensure_ascii=False)
-    json_data = json.dumps(horaires_data, separators=(",", ":"), ensure_ascii=False)
+    # Write files per region and day types
+    for region, data in horaires_by_region.items():
 
-    # Écrire dans un fichier JS avec une déclaration de variable
-    with open(js_filename, mode="w", encoding="utf-8") as js_file:
-        js_file.write(f"const horairesData = {json_data};\n")
+        if not data:
+            continue
 
-    print(f"Conversion dynamic stop_times terminée {js_filename}")
+        json_data = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
 
+        filename = os.path.join(output_dir, f"stop_times_{region}_{day_type}.js")
+
+        with open(filename, mode="w", encoding="utf-8") as js_file:
+            js_file.write(f"window.horairesChunk = {json_data};\n")
+
+        print(f"Conversion done: {filename}")
+
+        
 
 
 # -------------------------------------------------------------------------------------
@@ -119,23 +145,53 @@ def convert_stops_csv_to_js(csv_filename, js_filename):
     with open(js_filename, mode="w", encoding="utf-8") as js_file:
         js_file.write(f"const stopsData = {stops};\n")
 
-    print(f"Conversion static stops terminée : {js_filename}")
+    print(f"Conversion static stops done : {js_filename}")
 
     
-
 # Execute conversions for static data
 convert_routes_csv_to_js2(routes_csv_input_filename, routes_js_output_filename)
 convert_stops_csv_to_js(stops_csv_input_filename, stops_js_output_filename)
 
-#Execute conversios for dynamic data
-convert_stop_times_csv_to_js(stop_times_csv_input_filename, stop_times_js_output_filename_SEM, filter_strings_SEM)
-convert_stop_times_csv_to_js(stop_times_csv_input_filename, stop_times_js_output_filename_MER, filter_strings_MER)
-convert_stop_times_csv_to_js(stop_times_csv_input_filename, stop_times_js_output_filename_SAM, filter_strings_SAM)
-convert_stop_times_csv_to_js(stop_times_csv_input_filename, stop_times_js_output_filename_DIM, filter_strings_DIM)
-convert_stop_times_csv_to_js(stop_times_csv_input_filename, stop_times_js_output_filename_VAC, filter_strings_VAC)
+#generate horaires data for each region on SEM, SEM_VAC, DIM, MER, SAM days
+convert_stop_times_csv_to_js_by_region(
+    stop_times_csv_input_filename,
+    output_dir,
+    "SEM",
+    filter_strings_SEM_only,
+    REGIONS
+)
+convert_stop_times_csv_to_js_by_region(
+    stop_times_csv_input_filename,
+    output_dir,
+    "SEM_VAC",
+    filter_strings_SEM_VAC_only,
+    REGIONS
+)
+convert_stop_times_csv_to_js_by_region(
+    stop_times_csv_input_filename,
+    output_dir,
+    "DIM",
+    filter_strings_DIM_only,
+    REGIONS
+)
+convert_stop_times_csv_to_js_by_region(
+    stop_times_csv_input_filename,
+    output_dir,
+    "MER",
+    filter_strings_MER_only,
+    REGIONS
+)
+convert_stop_times_csv_to_js_by_region(
+    stop_times_csv_input_filename,
+    output_dir,
+    "SAM",
+    filter_strings_SAM_only,
+    REGIONS
+)
 
 
-#not used, for stats only
+
+#not used anymore, for stats only
 #Lister nombre de valeurs differentes dans stop_times avec filtre
 def list_unique_values(csv_filename):
     unique_values = set()

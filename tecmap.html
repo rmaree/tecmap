@@ -323,42 +323,72 @@
 	 const day = ((h + l - 7 * m + 114) % 31) + 1;
 	 return new Date(y, month - 1, day);
      }
+
+     //before 2AM we still use schedule from previous day
+     function getServiceDay(date = new Date(), cutoffHour = 2) {
+	 const d = new Date(date);
+	 if (d.getHours() < cutoffHour) {
+	     d.setDate(d.getDate() - 1);
+	 }
+	 return d.getDay(); // 0 = sunday, 1 = monday, ...
+     }
      
-     // Dynamic load of the right schedule file based on day of the week and week number (holidays/regular)
-     function loadScheduleFile() {
+     //Calculate the current day type
+     function getTodayType() {
 	 //to be adapted each year (TODO: automatic)
 	 //const holidayWeeks = [1, 9, 10, 18, 19, 28, 29, 30, 31, 32, 33, 34, 43, 44, 52]; //Belgium holiday weeks in 2025
 	 const holidayWeeks = [
 	     1,     // christmas, new year 2026
 	     8, 9,  // carnaval 
-	     14, 15,// easter
+	     18, 19,// easter
 	     26,27,28,29,30,31,32,33,34, // summer holidays
 	     44,45, // autumn
 	     52,53  // christmas
 	 ];
 	 const today = new Date();
-	 const dayOfWeek = today.getDay();
+	 const dayOfWeek = getServiceDay();
 	 const currentWeek = getISOWeekNumber(today);
 	 const isHoliday = isPublicHoliday(today);
 	 let suffix = holidayWeeks.includes(currentWeek) ? "_VAC" : "";
-	 let scriptFile = "data/stop_times-SEM"+suffix+".js"; // Default schedule for weekdays
-	 
-	 
+	 let dayType = "";
 	 if (dayOfWeek === 0 || isHoliday) { // Dimanche holidays / not holidays ; legal public holidays
-	     scriptFile = "data/stop_times-DIM.js";
+	     dayType = "DIM";
 	 } else if (dayOfWeek === 6) { // Saturday
-	     scriptFile = "data/stop_times-SAM.js";
+	     dayType = "SAM";
 	 } else if (dayOfWeek === 3 && !holidayWeeks.includes(currentWeek)) { // Mercredi, wednesday in SEM during holidays
-	     scriptFile = "data/stop_times-MER.js";
-	 }
-
-	 // Create and insert script dynamically
-	 const script = document.createElement("script");
-	 script.src = scriptFile;
-	 script.onload = () => console.log(`Horaires théoriques chargés depuis ${scriptFile}`);
-	 script.onerror = () => console.error(`Erreur de chargement du fichier ${scriptFile}`);
-	 document.head.appendChild(script);
+	     dayType = "MER";
+	 } else dayType = "SEM"+suffix; // Default schedule for weekdays;
+	 
+	 console.log("Today is a: ",dayType);
+	 return dayType;
      }
+
+     // Dynamic load of the right schedule file based on day of the week, week number (holidays/regular), and geographical region
+     async function loadScheduleFile_region(region, dayType) {
+	 const key = `${region}_${dayType}`;
+	 
+	 if (loadedRegions.has(key)) return;
+	 console.log("Start loading ", key);
+	 
+	 try {
+	     const script = document.createElement("script");
+	     script.src = `data/stop_times_${region}_${dayType}.js`;
+
+	     await new Promise((resolve, reject) => {
+		 script.onload = resolve;
+		 script.onerror = reject;
+		 document.head.appendChild(script);
+	     });
+
+	     // Le fichier JS contient la variable globale temporaire window.horairesChunk
+	     Object.assign(horairesData, window.horairesChunk);
+	     loadedRegions.add(key);
+
+	 } catch (err) {
+	     console.error("Erreur chargement région", region, err);
+	 }
+     }
+
 
    function parseDate(dateStr, timeStr = "00:00") {
        const [day, month, year] = dateStr.split(" ")[0].split("/");
@@ -780,7 +810,8 @@
            const startTime = Date.now();
 
            const check = () => {
-               if (typeof horairesData !== "undefined") {
+               //if (typeof horairesData !== "undefined") {
+	       if (loadedRegions.size>0) { //first schedule region is loaded
                    resolve(horairesData);
                } else if (Date.now() - startTime > timeout) {
                    reject(new Error("Timeout: horairesData n'a pas été chargé à temps."));
@@ -1142,44 +1173,48 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
    // Main execution of code
    // Initialize variables and map
 
-   // Initialize busMarkers (to be displayed on the map)
-   let busMarkers = {};  // Marqueurs des bus
+     // Initialize busMarkers (to be displayed on the map)
+     let busMarkers = {};  // Marqueurs des bus
 
-   //Load theoretical schedule first (large file)
-   loadScheduleFile();
-
-   let rtRefreshTimeout = RT_REFRESH_RATE;
+     //Load theoretical schedule first (large file)
+     let horairesData = {};
+     let loadedRegions = new Set();
+     const currentDayType=getTodayType();
+     loadScheduleFile_region("LG", currentDayType);
      
-   let gtfsVehicleData = null;
-   let formattedVehicleData = null;
-   let formattedAlertData = null;
-   let gtfsAlertData = null;
-   let gtfsUpdateData = null;
 
-   let alertsByRoute = {};
-   let alertsByStop = [];
-   let delayByTrip = {};
-   let statsByRoute = {};
-
-   const JSON_DATA_FORMAT=1; //0:protobuf, 1:json
+     let rtRefreshTimeout = RT_REFRESH_RATE;
      
-   const COLOR_MODES = {
+     let gtfsVehicleData = null;
+     let formattedVehicleData = null;
+     let formattedAlertData = null;
+     let gtfsAlertData = null;
+     let gtfsUpdateData = null;
+
+     let alertsByRoute = {};
+     let alertsByStop = [];
+     let delayByTrip = {};
+     let statsByRoute = {};
+
+     const JSON_DATA_FORMAT=1; //0:protobuf, 1:json
+     
+     const COLOR_MODES = {
 	 DELAY: "delay",
 	 SPEED: "speed"
-   };
-   let currentColorMode = COLOR_MODES.DELAY; // default coloring mode is based on delay
+     };
+     let currentColorMode = COLOR_MODES.DELAY; // default coloring mode is based on delay
 
-   const defaultCoords = [50.63, 5.56];
-   const defaultZoom = 12;
-   var osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-       maxZoom: 19,
-       attribution: '© <a href="https://www.openstreetmap.org/">OpenStreetMap contributors</a>'
-   });
+     const defaultCoords = [50.63, 5.56];
+     const defaultZoom = 12;
+     var osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+	 maxZoom: 19,
+	 attribution: '© <a href="https://www.openstreetmap.org/">OpenStreetMap contributors</a>'
+     });
 
-   var osmHOTLayer = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+     var osmHOTLayer = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
 	 maxZoom: 19,
 	 attribution: '&copy; HOT hosted by OSM France - &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'});
-
+     
 
      var cyclOSMLayer = L.tileLayer('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png',
 				    { maxZoom: 19,
@@ -1236,21 +1271,68 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
    }).addTo(map);
 
 
-   let first=1;
-   // Load realtime data (3 sources: updates, vehicles, alerts)
-   // Refresh update data every RT_REFRESH_RATE seconds
-   fetchRealTimeUpdateData();
-   setInterval(fetchRealTimeUpdateData, RT_REFRESH_RATE);
-   // Refresh vehicle position data every RT_REFRESH_RATE seconds
-   fetchRealTimeBusData();
-   scheduleNextFetch();
-   //setInterval(fetchRealTimeBusData, RT_REFRESH_RATE);
-   // Fetch alerts only once for the session
-   fetchRealTimeAlertData(); 
+     let first=1;
+
+     //define regions to load static schedule on-the-fly
+     const regionsBounds = {
+	 // Liège
+	 LG: L.latLngBounds([
+	     [50.3, 5.3],
+	     [50.8, 6.0]
+	 ]),
+	 // Charleroi
+	 CHOI: L.latLngBounds([
+	     [50.3, 4.2],
+	     [50.6, 4.6]
+	 ]),
+	 // Namur
+	 NAM: L.latLngBounds([
+	     [50.3, 4.7],
+	     [50.6, 5.2]
+	 ]),
+	 // Brabant Wallon (au nord de Namur / Charleroi)
+	 BW: L.latLngBounds([
+	     [50.5, 4.2],
+	     [50.9, 4.7]
+	 ]),
+	 // Hainaut (ouest de Charleroi)
+	 H: L.latLngBounds([
+	     [49.9, 3.5],
+	     [50.6, 4.3]
+	 ]),
+	 // Luxembourg (province du sud)
+	 LUX: L.latLngBounds([
+	     [49.4, 4.8],
+	     [50.3, 5.9]
+	 ])
+     };
+
+
+     //when panning, check the current location and load region data accordingly
+     map.on("moveend", async () => {
+	 const bounds = map.getBounds();
+	 for (const region in regionsBounds) {
+	     if (bounds.intersects(regionsBounds[region])) {
+		 await loadScheduleFile_region(region, currentDayType);
+	     }
+	 }
+     });
+
+     
+     // Load realtime data (3 sources: updates, vehicles, alerts)
+     // Refresh update data every RT_REFRESH_RATE seconds
+     fetchRealTimeUpdateData();
+     setInterval(fetchRealTimeUpdateData, RT_REFRESH_RATE);
+     // Refresh vehicle position data every RT_REFRESH_RATE seconds
+     fetchRealTimeBusData();
+     scheduleNextFetch();
+     //setInterval(fetchRealTimeBusData, RT_REFRESH_RATE);
+     // Fetch alerts only once for the session
+     fetchRealTimeAlertData(); 
      
      document.getElementById('close-side-btn').addEventListener('click', () => {
        document.getElementById('side-panel').classList.remove('open');
-   });
+     });
    
   </script>
 </body>
