@@ -28,7 +28,7 @@ stop_times_csv_input_filename = "data/stop_times.txt"  # Fichier GTFS csv inclua
 
 #Output Javascript files
 output_dir = "data"
-stops_js_output_filename = "data/stops.js"
+stops_js_output_filename = "data/stops_with_coords.js"
 routes_js_output_filename = "data/routes.js" #fichier JS de sortie indexé par route_id
 stop_times_js_output_filename_SEM = "data/stop_times-SEM.js"
 stop_times_js_output_filename_MER = "data/stop_times-MER.js"
@@ -147,11 +147,45 @@ def convert_stops_csv_to_js(csv_filename, js_filename):
 
     print(f"Conversion static stops done : {js_filename}")
 
+
+
+# -------------------------------------------------------------------------------------
+#Convert GTFS csv file with stops to JS object (id,name) with lat,lng coordinates
+def clean_stop_name(name):
+    return name.replace("(terminus)", "").strip()
+
+def convert_stops_csv_to_js_with_coords(csv_filename, js_filename):
+    stops = {}
+
+    with open(csv_filename, mode="r", encoding="utf-8") as csv_file:
+        reader = csv.DictReader(csv_file)
+        
+        for row in reader:
+            stop_id = row["stop_id"]
+            stop_name = row["stop_name"]
+            lat = float(row["stop_lat"])
+            lon = float(row["stop_lon"])
+            stops[stop_id] = {
+                "n": clean_stop_name(stop_name),
+                "la": lat,
+                "lo": lon
+            }
+
+    json_data = json.dumps(stops, separators=(",", ":"), ensure_ascii=False)
+
+    with open(js_filename, mode="w", encoding="utf-8") as js_file:
+        js_file.write(f"const stopsData = {json_data};\n")
+
+    print(f"Conversion static stops done : {js_filename}")
+
     
+# -------------------------------------------------------------------------------------
 # Execute conversions for static data
 convert_routes_csv_to_js2(routes_csv_input_filename, routes_js_output_filename)
-convert_stops_csv_to_js(stops_csv_input_filename, stops_js_output_filename)
+#convert_stops_csv_to_js(stops_csv_input_filename, stops_js_output_filename)
+convert_stops_csv_to_js_with_coords(stops_csv_input_filename, stops_js_output_filename)
 
+exit
 #generate horaires data for each region on SEM, SEM_VAC, DIM, MER, SAM days
 convert_stop_times_csv_to_js_by_region(
     stop_times_csv_input_filename,

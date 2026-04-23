@@ -27,7 +27,8 @@
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script> 
     
     <!-- Load local transit data: stops and trips -->
-    <script src="data/stops.js"></script>  <!-- loads stopsData  -->
+    <!-- <script src="data/stops.js"></script>  <!-- loads stopsData  --> -->
+    <script src="data/stops_with_coords.js"></script>  <!-- loads stopsData  -->
 
     <!-- Load local routes -->
     <script src="data/routes.js"></script>  <!-- loads routeData  -->
@@ -206,6 +207,27 @@
 	 line-height: 1;
 	 white-space: nowrap; /* évite les retours à la ligne */
      }
+
+
+     .stop-link {
+	 cursor: pointer;
+	 text-decoration: underline;
+     }
+
+     .stop-link:hover {
+	 color: #007bff;
+     }
+
+     .compact-tooltip {
+	 font-size: 11px;
+	 padding: 2px 6px;
+	 background: rgba(255, 255, 255, 0.9);
+	 border: 1px solid #ccc;
+	 border-radius: 4px;
+	 box-shadow: none;
+     }
+
+     
 
 
     </style>
@@ -477,10 +499,77 @@
 	 
 	 panel.classList.add('open');
    }
-   
-   //Fill the side panel with alert data related to the routeId
-   function showAlertsInPanel(routeId) {
-       const panel = document.getElementById('side-panel');
+
+     //function to handle hover on stop link: add marker to map
+     function handleStopHover(e) {
+	 const stopId = e.target.dataset.stopId;
+	 const latlng = getStopLatLng(stopId, stopsData);
+	 if (!latlng) return;
+
+	 if (stopPreviewMarker) {
+	     map.removeLayer(stopPreviewMarker);
+	 }
+
+	 stopPreviewMarker = L.circleMarker(latlng, {
+	     radius: 6,
+	     color: "#333",
+	     weight: 2,
+	     fillColor: "#fff",
+	     fillOpacity: 1
+	 }).addTo(map);
+
+	 stopPreviewMarker.bindTooltip(getStopName(stopId, stopsData), {
+	     direction: "top",
+	     offset: [0, -8],
+	     className: "compact-tooltip"
+	 }).openTooltip();
+     }
+
+     // function to handle click on stop link -> pan map
+     function handleStopClick(e) {
+	 const stopId = e.target.dataset.stopId;
+	 const latlng = getStopLatLng(stopId, stopsData);
+	 if (!latlng) return;
+
+	 // move map
+	 map.flyTo(latlng, Math.max(map.getZoom(), 15));
+
+	 if (stopPreviewMarker) {
+	     map.removeLayer(stopPreviewMarker);
+	 }
+
+	 stopPreviewMarker = L.circleMarker(latlng, {
+	     radius: 7,
+	     color: "#000",
+	     weight: 2,
+	     fillColor: "#fff",
+	     fillOpacity: 1
+	 }).addTo(map);
+
+	 // close panel ?
+	 //document.getElementById('side-panel').classList.remove('open');
+     }
+     
+     //add events on stop links
+     function attachStopInteractions() {
+	 document.querySelectorAll('.stop-link').forEach(el => {
+
+	     el.addEventListener('mouseenter', handleStopHover);
+	     el.addEventListener('click', handleStopClick);
+
+	     el.addEventListener('mouseleave', () => {
+		 if (stopPreviewMarker) {
+		     map.removeLayer(stopPreviewMarker);
+		     stopPreviewMarker = null;
+		 } 
+	     });
+	 });
+     }
+
+     
+     //Fill the side panel with alert data related to the routeId
+     function showAlertsInPanel(routeId) {
+	 const panel = document.getElementById('side-panel');
        const content = document.getElementById('side-content');
        const title = document.getElementById('side-title');
        content.innerHTML = '';
@@ -495,14 +584,19 @@
        } else {
 	   let stopNames = ' ';
 	   sorted_alerts.forEach(alert => {
-	       stopNames = alert.stops.map(stopId => getStopName(stopId,stopsData)).join(', ');
+	       //stopNames = alert.stops.map(stopId => getStopName(stopId,stopsData)).join(', ');
+	       const stopLinks = alert.stops.map(stopId => {
+		   const name = getStopName(stopId, stopsData);
+		   return `<span class="stop-link" data-stop-id="${stopId}">${name}</span>`;
+	       }).join(', ');
+	       
 	       const div = document.createElement('div');
 	       div.className = 'alert';
-	       if (stopNames) {
+	       if (stopLinks) {
 		   div.innerHTML = `
 		       <strong>${alert.description}</strong><br>
 		       🕒 Du ${alert.start} au ${alert.end}<br>
-		       🚏 Arrêts concernés : ${stopNames}
+		       🚏 Arrêts concernés : ${stopLinks}</a>
 		   `;
 	       }
 	       else {
@@ -513,9 +607,10 @@
 	       }
 	       content.appendChild(div);
 	   });
+	   attachStopInteractions();
        }
-       panel.classList.add('open');
-   }
+	 panel.classList.add('open');
+     }
 
 
    //Fill the side panel with schedule data related to the tripId
@@ -557,11 +652,11 @@
 	       // entry.a is arrival_time
 	       if (isNextStop || stopName.toLowerCase().includes(filterStop.toLowerCase()))
 		   innerHTML += `<li ${(isNextStop || filterStop) ? 'style="font-weight: bold; "' : ''}>
-           ${entry.a.slice(0, 5)} <span style="color: ${busColor};"> ${printDelay(delay)} </span> - ${stopName} 
+           ${entry.a.slice(0, 5)} <span style="color: ${busColor};"> ${printDelay(delay)} </span> - <span class="stop-link" data-stop-id="${entry.s}">${stopName}</span> 
            </li>`;
 	       else
 		   innerHTML += `<li ${isNextStop ? 'style="font-weight: bold; "' : ''}>
-           ${entry.a.slice(0, 5)} - ${stopName} 
+           ${entry.a.slice(0, 5)} - <span class="stop-link" data-stop-id="${entry.s}">${stopName}</span>
          </li>`;
 	   });
 	   innerHTML += "</ul>";
@@ -571,12 +666,15 @@
        <a href="#" onclick="openStaticSchedule('${routeShortId}')">Horaires théoriques de la ligne ${routeShortId}</a>
        `;
 
-       // Display stats about delays for this line
-       //content.innerHTML += `
-       //	       <p>Délai pour la ligne ${routeShortId}: <br><span style="color:${color}; font-weight:bold;">${avg} min</span> (moyenne pour ${count} bus)</p>
-       //`;  
-       panel.classList.add('open');
-   }
+	 // Display stats about delays for this line
+	 //content.innerHTML += `
+	 //	       <p>Délai pour la ligne ${routeShortId}: <br><span style="color:${color}; font-weight:bold;">${avg} min</span> (moyenne pour ${count} bus)</p>
+	 //`;
+
+	 
+	 attachStopInteractions();
+	 panel.classList.add('open');
+     }
    
    // Clear bus filter
    function clearFilter() {
@@ -597,14 +695,18 @@
 
 
    // Get readable stop name based on stopId (identifier in gtfs static)
-   function getStopName(stopId, stopsMap) {
-       if (stopId) {
-	   return stopsMap[stopId] || "Arrêt inconnu";
-       }
-   }
+     function getStopName(stopId, stopsMap) {
+	 return stopsMap[stopId]?.n || "Arrêt inconnu";
+     }
+
+     function getStopLatLng(stopId, stopsMap) {
+	 const lat = stopsMap[stopId]?.la;
+	 const lon = stopsMap[stopId]?.lo;
+	 return (lat !== undefined && lon !== undefined) ? [lat, lon] : null;
+     }
 
 
-   // Create a specific vehicle marker icon based on vehicle type and buscolor (based on delay)
+     // Create a specific vehicle marker icon based on vehicle type and buscolor (based on delay)
    function makeVehicleIcon(bus, busColor) {
        const route = bus.trip.route_short_name;
 
@@ -774,6 +876,11 @@
        return route ? route.rsn : " ";
    }
 
+
+
+    
+
+     
 
      // ---------------------------------------------------------------------------------------------
      // Utils functions to load and transform GTFS data
@@ -1168,14 +1275,16 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
 
 
 
-   
-   // ---------------------------------------------------------------------------------------------
-   // Main execution of code
-   // Initialize variables and map
+     
+     // ---------------------------------------------------------------------------------------------
+     // Main execution of code
+     // Initialize variables and map
 
      // Initialize busMarkers (to be displayed on the map)
      let busMarkers = {};  // Marqueurs des bus
 
+     let stopPreviewMarker = null;
+     
      //Load theoretical schedule first (large file)
      let horairesData = {};
      let loadedRegions = new Set();
