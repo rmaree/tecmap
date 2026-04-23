@@ -1,7 +1,7 @@
 # GTFS-Realtime cache server
 
 Lightweight server in node.js to put GTFS-Realtime data from remote source (with limited-access API key) into cache
-and sever JSON/raw data to multiple clients
+and serve JSON/raw data to multiple clients
 
 ## Goal
 
@@ -37,9 +37,9 @@ It allows to reduce calls to API (only the server does, not the clients) and sim
 - **gtfs-realtime-bindings** - decode protobuf GTFS-RT
 - **CORS** - handle cross-origin requests
 
-## 🚀 Installation
+## Installation
 
-On your Linux-based system (tested on Ubuntu):
+On your Linux-based system (tested on Ubuntu). This doc should be improved but we provide it as is for now.
 
 ```
 sudo apt update
