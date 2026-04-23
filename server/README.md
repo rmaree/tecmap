@@ -72,6 +72,14 @@ scp nginx-gtfs-cache
 scp setup-https.sh
 ...
 
+#to host html and data on the server:
+#create public and data directory on your server, configure nginx accordingly (see below)
+scp tecmap.html ...@...:/opt/gtfs-cache-server/public/
+scp data/stop_*.js ...@...:/opt/gtfs-cache-server/public/data/
+scp data/routes.js ...@...:/opt/gtfs-cache-server/public/data/
+scp data/stops_with_coords.js ...@...:/opt/gtfs-cache-server/public/data/
+
+
 #config nginx
 sudo cp /opt/gtfs-cache-server/gtfs-cache.service /etc/systemd/system/
 sudo cp /opt/gtfs-cache-server/nginx-gtfs-cache /etc/nginx/sites-available/gtfs-cache
