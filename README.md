@@ -25,8 +25,8 @@ including routes and stops, and real-time traffic information assumed to be acce
 
     2.1 static `data/stops.txt` will be converted to `data/stops.js`  (contains names of bus stops)
    
-    2.2 dynamic `data/stop_times.txt` (contains routes with sequences of bus stops and arrival times) will be converted to multiple `data/stop_times.js` files split by days using filter_strings 
-   The original data is split into multiple .js files using the filter_strings to avoid loading too much data in the browser. In tecmap.html the appropriate js file is loaded on-the-fly according e.g. to the day of the week and holidays (Belgium).
+    2.2 dynamic `data/stop_times.txt` (contains routes with sequences of bus stops and arrival times) will be converted to multiple `data/stop_times.js` files split by days and regions using filter_strings 
+   The original data is split into multiple .js files using the filter_strings and regions to avoid loading too much data in the browser. In the front-end tecmap.html the appropriate js file is loaded on-the-fly according to the day type (weekday, sunday, saturday, wednesday, holidays or not) and map regions (in Wallonia). Regions and day type strings are hard-coded both in the conversion script and front-end html page and should be adapted to your public transport provider.
 
     2.3 static `data/routes.txt` will be converted to `data/routes.js`  (contains route short and long names)
 
