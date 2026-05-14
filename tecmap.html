@@ -164,6 +164,13 @@
 	 background: #fff;
      }
 
+     .favorites-bar {
+	 display: flex;
+	 flex-wrap: wrap;
+	 gap: 6px;
+	 padding: 2px 8px 6px;
+     }
+
      .favorites-list {
 	 display: flex;
 	 flex-wrap: wrap;
@@ -447,12 +454,14 @@
 	    <button type="button" id="recenter-btn" class="filter-action" onclick="recenterMapOnUser()" aria-label="Recentrer sur ma position">📍</button>
 	    <button type="button" id="mobile-settings-toggle" class="filter-toggle mobile-only" onclick="toggleMobileControls()" aria-expanded="false" aria-controls="filter-secondary">⚙</button>
 	</div>
+	<div id="favorites-bar" class="favorites-bar" hidden>
+	    <div id="favorites-list" class="favorites-list"></div>
+	</div>
 	<div id="filter-secondary" class="filter-row filter-secondary">
 	    <div class="favorites-controls">
 		<input type="text" id="favoriteLineInput" class="favorites-input" placeholder="Ajouter un favori (ex: 58)" onkeydown="handleFavoriteInputKeydown(event)">
 		<button type="button" class="filter-action" onclick="addFavoriteLineFromInput()" aria-label="Ajouter un favori">★+</button>
 	    </div>
-	    <div id="favorites-list" class="favorites-list"></div>
 	    <label for="colorModeSelect">Couleurs</label>
 	    <select id="colorModeSelect" onchange="updateColorMode()">
 		<option value="delay">Retard / avance</option>
@@ -522,14 +531,13 @@
 	 if (!container) return;
 	 container.innerHTML = "";
 
+	 const bar = document.getElementById("favorites-bar");
 	 const { favoriteLines, activeFavoriteLines } = getSanitizedFavoriteState(appState);
 	 if (favoriteLines.length === 0) {
-	     const emptyState = document.createElement("span");
-	     emptyState.className = "favorite-empty";
-	     emptyState.textContent = "Aucun favori";
-	     container.appendChild(emptyState);
+	     if (bar) bar.hidden = true;
 	     return;
 	 }
+	 if (bar) bar.hidden = false;
 
 	 favoriteLines.forEach(line => {
 	     const wrapper = document.createElement("div");
