@@ -1,0 +1,17 @@
+/data/
+/.devcontainer/
+/config.js
+/.venv/
+/.vscode/
+/.pytest_cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.sqlite3
+*.db
+*.env
+*.DS_Store
+*.egg-info/
+config.js
