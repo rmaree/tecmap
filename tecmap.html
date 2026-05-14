@@ -147,6 +147,70 @@
 	 background: #fff;
      }
 
+     .favorites-controls {
+	 display: flex;
+	 align-items: center;
+	 gap: 6px;
+	 width: 100%;
+     }
+
+     .favorites-input {
+	 flex: 1;
+	 min-width: 0;
+	 font-size: 14px;
+	 padding: 8px 10px;
+	 border: 1px solid #c8d0d8;
+	 border-radius: 10px;
+	 background: #fff;
+     }
+
+     .favorites-list {
+	 display: flex;
+	 flex-wrap: wrap;
+	 gap: 6px;
+	 width: 100%;
+     }
+
+     .favorite-item {
+	 display: inline-flex;
+	 align-items: center;
+	 border: 1px solid #d0d8e2;
+	 border-radius: 999px;
+	 background: #fff;
+	 overflow: hidden;
+     }
+
+     .favorite-chip,
+     .favorite-remove {
+	 margin-bottom: 0;
+	 border: none;
+	 background: transparent;
+	 padding: 5px 9px;
+	 font-size: 13px;
+	 color: #233444;
+	 cursor: pointer;
+	 line-height: 1;
+     }
+
+     .favorite-chip.active {
+	 background: #1b6ec2;
+	 color: #fff;
+	 font-weight: 600;
+     }
+
+     .favorite-remove {
+	 border-left: 1px solid #d0d8e2;
+	 color: #6a7784;
+	 min-width: 26px;
+	 padding: 5px 7px;
+     }
+
+     .favorite-empty {
+	 font-size: 12px;
+	 color: #6a7784;
+	 padding: 4px 2px;
+     }
+
      .filter-help {
 	 color: #22303c;
 	 font-size: 16px;
@@ -384,6 +448,11 @@
 	    <button type="button" id="mobile-settings-toggle" class="filter-toggle mobile-only" onclick="toggleMobileControls()" aria-expanded="false" aria-controls="filter-secondary">⚙</button>
 	</div>
 	<div id="filter-secondary" class="filter-row filter-secondary">
+	    <div class="favorites-controls">
+		<input type="text" id="favoriteLineInput" class="favorites-input" placeholder="Ajouter un favori (ex: 58)" onkeydown="handleFavoriteInputKeydown(event)">
+		<button type="button" class="filter-action" onclick="addFavoriteLineFromInput()" aria-label="Ajouter un favori">★+</button>
+	    </div>
+	    <div id="favorites-list" class="favorites-list"></div>
 	    <label for="colorModeSelect">Couleurs</label>
 	    <select id="colorModeSelect" onchange="updateColorMode()">
 		<option value="delay">Retard / avance</option>
@@ -391,9 +460,7 @@
 	    </select>
 	    <label for="baseMapSelect">Fond</label>
 	    <select id="baseMapSelect" onchange="updateBaseMap()"></select>
-	    <span title="Aide">
-		<a class="filter-help" href="#" onclick="showColorLegendInPanel()"><i class="fa-solid fa-question"></i></a>
-	    </span>
+	    <a class="filter-help" href="#" onclick="showColorLegendInPanel()" title="Aide / Légende">Aide / Légende</a>
 	</div>
 	<p class="filter-stats desktop-only">Bus visibles : <span id="busCount">0</span></p>
     </div>
@@ -424,8 +491,130 @@
    const DEFAULT_MAP_ZOOM = 12;
    const MIN_MAP_ZOOM = 0;
    const MAX_MAP_ZOOM = 22;
+   const MAX_FAVORITES = 20;
    const isMobileLayout = window.matchMedia("(max-width: 768px)").matches;
    let appState = loadSavedState();
+
+   function normalizeFavoriteLine(lineValue) {
+	 if (typeof lineValue !== "string") return "";
+	 return lineValue.trim().toUpperCase();
+   }
+
+   function getSanitizedFavoriteState(state) {
+	 const rawFavorites = Array.isArray(state.favoriteLines) ? state.favoriteLines : [];
+	 const favoriteLines = [...new Set(rawFavorites.map(normalizeFavoriteLine).filter(Boolean))].slice(0, MAX_FAVORITES);
+
+	 const rawActive = Array.isArray(state.activeFavoriteLines) ? state.activeFavoriteLines : favoriteLines;
+	 const activeFavoriteLines = [...new Set(rawActive.map(normalizeFavoriteLine).filter(Boolean))]
+	     .filter(line => favoriteLines.includes(line));
+
+	 return { favoriteLines, activeFavoriteLines };
+   }
+
+   function applyFavoriteState(favoriteLines, activeFavoriteLines) {
+	 appState.favoriteLines = favoriteLines;
+	 appState.activeFavoriteLines = activeFavoriteLines;
+	 saveState({ favoriteLines, activeFavoriteLines });
+   }
+
+   function renderFavoriteLines() {
+	 const container = document.getElementById("favorites-list");
+	 if (!container) return;
+	 container.innerHTML = "";
+
+	 const { favoriteLines, activeFavoriteLines } = getSanitizedFavoriteState(appState);
+	 if (favoriteLines.length === 0) {
+	     const emptyState = document.createElement("span");
+	     emptyState.className = "favorite-empty";
+	     emptyState.textContent = "Aucun favori";
+	     container.appendChild(emptyState);
+	     return;
+	 }
+
+	 favoriteLines.forEach(line => {
+	     const wrapper = document.createElement("div");
+	     wrapper.className = "favorite-item";
+
+	     const toggleButton = document.createElement("button");
+	     toggleButton.type = "button";
+	     toggleButton.className = `favorite-chip${activeFavoriteLines.includes(line) ? " active" : ""}`;
+	     toggleButton.textContent = line;
+	     toggleButton.title = activeFavoriteLines.includes(line)
+		 ? `Favori actif ${line}`
+		 : `Activer ${line}`;
+	     toggleButton.addEventListener("click", () => toggleFavoriteLine(line));
+
+	     const removeButton = document.createElement("button");
+	     removeButton.type = "button";
+	     removeButton.className = "favorite-remove";
+	     removeButton.textContent = "✕";
+	     removeButton.title = `Supprimer le favori ${line}`;
+	     removeButton.addEventListener("click", () => removeFavoriteLine(line));
+
+	     wrapper.appendChild(toggleButton);
+	     wrapper.appendChild(removeButton);
+	     container.appendChild(wrapper);
+	 });
+   }
+
+   function initializeFavoriteState() {
+	 const { favoriteLines, activeFavoriteLines } = getSanitizedFavoriteState(appState);
+	 applyFavoriteState(favoriteLines, activeFavoriteLines);
+	 renderFavoriteLines();
+   }
+
+   function addFavoriteLine(lineValue) {
+	 const normalizedLine = normalizeFavoriteLine(lineValue);
+	 if (!normalizedLine) return;
+
+	 const { favoriteLines, activeFavoriteLines } = getSanitizedFavoriteState(appState);
+	 if (!favoriteLines.includes(normalizedLine)) {
+	     favoriteLines.push(normalizedLine);
+	 }
+	 const nextFavorites = favoriteLines.slice(0, MAX_FAVORITES);
+	 const nextActive = [...new Set([...activeFavoriteLines, normalizedLine])].filter(line => nextFavorites.includes(line));
+
+	 applyFavoriteState(nextFavorites, nextActive);
+	 renderFavoriteLines();
+	 fetchRealTimeBusData(0);
+   }
+
+   function addFavoriteLineFromInput() {
+	 const input = document.getElementById("favoriteLineInput");
+	 if (!input) return;
+	 const value = input.value;
+	 input.value = "";
+	 addFavoriteLine(value);
+   }
+
+   function handleFavoriteInputKeydown(event) {
+	 if (event.key !== "Enter") return;
+	 event.preventDefault();
+	 addFavoriteLineFromInput();
+   }
+
+   function removeFavoriteLine(lineValue) {
+	 const line = normalizeFavoriteLine(lineValue);
+	 const { favoriteLines, activeFavoriteLines } = getSanitizedFavoriteState(appState);
+	 const nextFavorites = favoriteLines.filter(item => item !== line);
+	 const nextActive = activeFavoriteLines.filter(item => item !== line);
+
+	 applyFavoriteState(nextFavorites, nextActive);
+	 renderFavoriteLines();
+	 fetchRealTimeBusData(0);
+   }
+
+   function toggleFavoriteLine(lineValue) {
+	 const line = normalizeFavoriteLine(lineValue);
+	 const { favoriteLines, activeFavoriteLines } = getSanitizedFavoriteState(appState);
+	 const nextActive = activeFavoriteLines.includes(line)
+	     ? activeFavoriteLines.filter(item => item !== line)
+	     : [...activeFavoriteLines, line];
+
+	 applyFavoriteState(favoriteLines, nextActive);
+	 renderFavoriteLines();
+	 fetchRealTimeBusData(0);
+   }
 
    function isValidCenter(center) {
 	 return Array.isArray(center)
@@ -479,6 +668,7 @@
 	 if (typeof appState.colorMode === "string") {
 	     colorModeSelect.value = appState.colorMode;
 	 }
+	 initializeFavoriteState();
 
 	 filterContainer.classList.toggle("mobile-collapsed", shouldCollapse);
 	 updateMobileToggleLabel();
@@ -1465,13 +1655,17 @@
 	   // Get filter values from the input box 
 	   let tooltip_permanent = 0;
 	   const filterLineStops = {};
-	   let filterValues = document.getElementById('busFilter').value.split(" ").map(num => num.trim()); // Convertit en tableau
+	   const manualFilterValues = document.getElementById('busFilter').value.split(" ").map(s => s.trim()).filter(Boolean);
+	   const { activeFavoriteLines } = getSanitizedFavoriteState(appState);
+	   // Combine manual filter and active favorites; manual filter lines with ? get stop filter, favorites are plain line codes
+	   const activeFilterValues = [...new Set([...manualFilterValues, ...activeFavoriteLines])];
+	   const hasActiveFilter = activeFilterValues.length > 0;
 	   // Check the filter string to look for ? to identify specific busstop
-	   if (filterValues.length > 0 && filterValues[0] != ''){
-	       tooltip_permanent = 1;
-	       filterValues.forEach(value => {
+	   if (hasActiveFilter) {
+	       if (manualFilterValues.length > 0) tooltip_permanent = 1;
+	       activeFilterValues.forEach(value => {
 		   const [busLine, busStop] = value.split('?');
-		   filterLineStops[busLine.trim()] = busStop ? busStop.trim() : "";
+		   filterLineStops[busLine.trim().toUpperCase()] = busStop ? busStop.trim() : "";
 	       });
 	   }
 	   
@@ -1502,8 +1696,8 @@
 	       trip.route_short_name = getRouteShortName(trip.routeId) || null;
 	       trip.route_long_name= getRouteLongName(trip.routeId) || null;
 		     
-	       // If the filter is not null, we skip bus lines which are not in the filter
-	       if (filterValues.length > 0 && filterValues[0] != '' && !(trip.route_short_name.toString() in filterLineStops)) return;
+	       // If an active filter exists (manual or favorites), skip non-matching lines
+	       if (hasActiveFilter && !(trip.route_short_name.toString().toUpperCase() in filterLineStops)) return;
 	       
 	       const nextStopName = getStopName(bus.stopId,stopsData);
 	       const startPoint = getStartPoint(bus.trip.tripId);
@@ -1514,7 +1708,7 @@
 	       //const delay = schedule ? estimateDelay_deprecated(schedule,bus.currentStopSequence,bus.timestamp) : 0;
 	       const delay = estimateDelay(bus.trip.tripId);
 	       
-	       const filterStop = filterLineStops[bus.trip.route_short_name];
+	       const filterStop = filterLineStops[bus.trip.route_short_name.toString().toUpperCase()] ?? "";
 	       let filterStopTime = "";
 	       if (filterStop) {
 		   filterStopTime = getStopTimeString(horairesData[bus.trip.tripId],bus.currentStopSequence,delay,filterStop);
@@ -1689,7 +1883,9 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
 	 colorMode: currentColorMode,
 	 center: defaultCoords,
 	 zoom: defaultZoom,
-	 busFilter: document.getElementById("busFilter").value
+	 busFilter: document.getElementById("busFilter").value,
+	 favoriteLines: appState.favoriteLines,
+	 activeFavoriteLines: appState.activeFavoriteLines
    });
 
    var layerControl = !isMobileLayout ? L.control.layers(baseMaps).addTo(map) : null;
