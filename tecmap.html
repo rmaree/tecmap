@@ -36,9 +36,6 @@
     <!-- Leaflet geolocalisation control -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.css" />
-    <script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.js"></script>
-
     <script src="leaflet-tilelayer-colorfilter-global.min.js"></script>
     
     <!-- Style FontAwesome pour les icônes -->
@@ -49,7 +46,126 @@
     
     
     <style>
-     #map { height: 97dvh; padding-bottom: 10px; }
+     html, body {
+	 height: 100%;
+	 margin: 0;
+	 padding: 0;
+     }
+
+     body {
+	 overflow: hidden;
+	 font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	 background: #f4f6f8;
+     }
+
+     #map {
+	 height: 100dvh;
+	 width: 100vw;
+	 padding-bottom: 0;
+	 margin: 0;
+	 inset: 0;
+	 position: relative;
+     }
+
+     #filter-container {
+	 position: absolute;
+	 top: 10px;
+	 left: 56px;
+	 right: 10px;
+	 max-width: 360px;
+	 background: rgba(255, 255, 255, 0.96);
+	 padding: 8px 10px;
+	 border-radius: 12px;
+	 box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+	 z-index: 1000;
+	 backdrop-filter: blur(8px);
+     }
+
+     .filter-row {
+	 display: flex;
+	 align-items: center;
+	 gap: 6px;
+     }
+
+     .filter-row + .filter-row {
+	 margin-top: 6px;
+     }
+
+     .filter-input {
+	 flex: 1;
+	 min-width: 0;
+	 font-size: 16px;
+	 padding: 9px 10px;
+	 border: 1px solid #c8d0d8;
+	 border-radius: 10px;
+	 background: #fff;
+     }
+
+     .filter-action,
+     .filter-toggle {
+	 display: inline-flex;
+	 align-items: center;
+	 justify-content: center;
+	 min-width: 40px;
+	 min-height: 40px;
+	 margin: 0;
+	 padding: 0 10px;
+	 border: 1px solid #c8d0d8;
+	 border-radius: 10px;
+	 background: #fff;
+	 color: #22303c;
+	 font-size: 16px;
+	 cursor: pointer;
+     }
+
+	.filter-action[disabled],
+	.filter-toggle[disabled] {
+	 opacity: 0.6;
+	 cursor: default;
+	}
+
+     .filter-secondary {
+	 display: flex;
+	 align-items: center;
+	 gap: 6px;
+	 flex-wrap: wrap;
+     }
+
+     .filter-secondary label {
+	 font-size: 13px;
+	 color: #425466;
+	 white-space: nowrap;
+     }
+
+     .filter-secondary select {
+	 flex: 1;
+	 min-width: 120px;
+	 font-size: 14px;
+	 padding: 8px 10px;
+	 border: 1px solid #c8d0d8;
+	 border-radius: 10px;
+	 background: #fff;
+     }
+
+     .filter-help {
+	 color: #22303c;
+	 font-size: 16px;
+	 text-decoration: none;
+     }
+
+     .filter-stats {
+	 margin: 6px 0 0;
+	 font-size: 13px;
+	 color: #425466;
+     }
+
+     .mobile-only {
+	 display: none;
+     }
+
+	.desktop-only {
+	 display: block;
+	}
 
      .custom-user-marker {
 	 font-size: 44px;
@@ -226,6 +342,33 @@
 	 box-shadow: none;
      }
 
+     @media (max-width: 768px) {
+	 #filter-container {
+	    left: 8px;
+	    right: 8px;
+	    top: 8px;
+	    max-width: none;
+	    padding: 8px;
+	 }
+
+	 .desktop-only {
+	    display: none;
+	 }
+
+	 .mobile-only {
+	    display: inline-flex;
+	 }
+
+	 #filter-container.mobile-collapsed .filter-secondary {
+	    display: none;
+	 }
+
+	 #side-panel {
+	    width: min(100vw, 400px);
+	    right: calc(-1 * min(100vw, 400px));
+	 }
+     }
+
      
 
 
@@ -233,22 +376,26 @@
 </head>
 <body>
     
-    <div id="filter-container" style="position: absolute; top: 10px; left: 50px; background: white; padding: 5px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 1000;">
-	<div style="display: flex; align-items: center; gap: 3px; margin-bottom: 4px;">
-	    <input type="text" id="busFilter" placeholder="Filtrer par ligne" oninput="fetchRealTimeBusData(0)" style="flex:1;">
-	    <button onclick="clearFilter()">❌</button>
+    <div id="filter-container" class="mobile-collapsed">
+	<div class="filter-row">
+	    <input type="text" id="busFilter" class="filter-input" placeholder="Filtrer par ligne" oninput="handleFilterInput()">
+	    <button type="button" class="filter-action" onclick="clearFilter()" aria-label="Effacer le filtre">✕</button>
+	    <button type="button" id="recenter-btn" class="filter-action" onclick="recenterMapOnUser()" aria-label="Recentrer sur ma position">📍</button>
+	    <button type="button" id="mobile-settings-toggle" class="filter-toggle mobile-only" onclick="toggleMobileControls()" aria-expanded="false" aria-controls="filter-secondary">⚙</button>
 	</div>
-	<div style="display: flex; align-items: center; gap: 6px;">
-	    <label for="colorModeSelect">Mode couleurs:</label>
+	<div id="filter-secondary" class="filter-row filter-secondary">
+	    <label for="colorModeSelect">Couleurs</label>
 	    <select id="colorModeSelect" onchange="updateColorMode()">
 		<option value="delay">Retard / avance</option>
 		<option value="speed">Vitesse</option>
 	    </select>
+	    <label for="baseMapSelect">Fond</label>
+	    <select id="baseMapSelect" onchange="updateBaseMap()"></select>
 	    <span title="Aide">
-		<a href="#" onclick="showColorLegendInPanel()"><i class="fa-solid fa-question"></i></a>
+		<a class="filter-help" href="#" onclick="showColorLegendInPanel()"><i class="fa-solid fa-question"></i></a>
 	    </span>
 	</div>
-	<p style="margin: 4px 0 0;">Bus visibles : <span id="busCount">0</span></p>
+	<p class="filter-stats desktop-only">Bus visibles : <span id="busCount">0</span></p>
     </div>
 
   
@@ -271,6 +418,122 @@
     <script>
    // ---------------------------------------------------------------------------------------------
    // Utils 
+
+   const UI_STORAGE_KEY = "tecmap.ui.v1";
+   const isMobileLayout = window.matchMedia("(max-width: 768px)").matches;
+   let appState = loadSavedState();
+
+   function loadSavedState() {
+	 try {
+	     const rawState = localStorage.getItem(UI_STORAGE_KEY);
+	     if (!rawState) return {};
+	     return JSON.parse(rawState) || {};
+	 } catch (error) {
+	     console.warn("Impossible de relire l'état local", error);
+	     return {};
+	 }
+   }
+
+   function saveState(patch) {
+	 appState = { ...appState, ...patch };
+	 try {
+	     localStorage.setItem(UI_STORAGE_KEY, JSON.stringify(appState));
+	 } catch (error) {
+	     console.warn("Impossible d'enregistrer l'état local", error);
+	 }
+   }
+
+   function applySavedUiState() {
+	 const busFilter = document.getElementById("busFilter");
+	 const colorModeSelect = document.getElementById("colorModeSelect");
+	 const filterContainer = document.getElementById("filter-container");
+	 const shouldCollapse = isMobileLayout && appState.mobileControlsExpanded !== true;
+
+	 if (typeof appState.busFilter === "string") {
+	     busFilter.value = appState.busFilter;
+	 }
+	 if (typeof appState.colorMode === "string") {
+	     colorModeSelect.value = appState.colorMode;
+	 }
+
+	 filterContainer.classList.toggle("mobile-collapsed", shouldCollapse);
+	 updateMobileToggleLabel();
+   }
+
+   function toggleMobileControls() {
+	 const filterContainer = document.getElementById("filter-container");
+	 const expanded = filterContainer.classList.contains("mobile-collapsed");
+	 filterContainer.classList.toggle("mobile-collapsed", !expanded);
+	 saveState({ mobileControlsExpanded: expanded });
+	 updateMobileToggleLabel();
+   }
+
+   function updateMobileToggleLabel() {
+	 const toggle = document.getElementById("mobile-settings-toggle");
+	 if (!toggle) return;
+	 const expanded = !document.getElementById("filter-container").classList.contains("mobile-collapsed");
+	 toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+	 toggle.textContent = expanded ? "–" : "⚙";
+   }
+
+   function handleFilterInput() {
+	 const filterValue = document.getElementById("busFilter").value;
+	 saveState({ busFilter: filterValue });
+	 fetchRealTimeBusData(0);
+   }
+
+   function populateBaseMapSelect(baseMaps, selectedLabel) {
+	 const baseMapSelect = document.getElementById("baseMapSelect");
+	 baseMapSelect.innerHTML = "";
+	 Object.keys(baseMaps).forEach(label => {
+	     const option = document.createElement("option");
+	     option.value = label;
+	     option.textContent = label;
+	     if (label === selectedLabel) {
+		 option.selected = true;
+	     }
+	     baseMapSelect.appendChild(option);
+	 });
+   }
+
+   function persistMapView() {
+	 if (!map) return;
+	 const center = map.getCenter();
+	 saveState({
+	     center: [Number(center.lat.toFixed(6)), Number(center.lng.toFixed(6))],
+	     zoom: map.getZoom()
+	 });
+   }
+
+   function recenterMapOnUser() {
+	 const button = document.getElementById("recenter-btn");
+	 if (button) {
+	     button.disabled = true;
+	 }
+
+	 if (!navigator.geolocation) {
+	     console.warn("Geolocation API non disponible");
+	     if (button) button.disabled = false;
+	     return;
+	 }
+
+	 navigator.geolocation.getCurrentPosition(
+	     position => {
+		 const { latitude, longitude } = position.coords;
+		 map.flyTo([latitude, longitude], Math.max(map.getZoom(), 15));
+		 if (button) button.disabled = false;
+	     },
+	     error => {
+		 console.warn("Impossible de recentrer la carte", error);
+		 if (button) button.disabled = false;
+	     },
+	     {
+		 enableHighAccuracy: true,
+		 timeout: 10000,
+		 maximumAge: 30000
+	     }
+	 );
+   }
 
    function openStaticSchedule(routeId) {
        let url = '';
@@ -678,6 +941,7 @@
    // Clear bus filter
    function clearFilter() {
        document.getElementById('busFilter').value = '';
+	 saveState({ busFilter: '' });
        fetchRealTimeBusData(0); // Refresh data to refresh the map after clearing the filter
    }
    
@@ -751,6 +1015,23 @@
      function updateColorMode() {
 	 const select = document.getElementById("colorModeSelect");
 	 currentColorMode = select.value;
+	 saveState({ colorMode: currentColorMode });
+	 fetchRealTimeBusData(0);
+     }
+
+     function updateBaseMap() {
+	 const baseMapLabel = document.getElementById("baseMapSelect").value;
+	 const nextLayer = baseMaps[baseMapLabel];
+	 if (!nextLayer) return;
+
+	 Object.values(baseMaps).forEach(layer => {
+	     if (map.hasLayer(layer)) {
+		 map.removeLayer(layer);
+	     }
+	 });
+	 nextLayer.addTo(map);
+	 saveState({ baseMap: baseMapLabel });
+	 persistMapView();
 	 fetchRealTimeBusData(0);
      }
    
@@ -1206,7 +1487,7 @@
 	       //Compute delay based on static schedule 
 	       const schedule = horairesData[bus.trip.tripId];
 	       //const delay = schedule ? estimateDelay_deprecated(schedule,bus.currentStopSequence,bus.timestamp) : 0;
-	       const delay = schedule ? estimateDelay(bus.trip.tripId) : 0;
+	       const delay = estimateDelay(bus.trip.tripId);
 	       
 	       const filterStop = filterLineStops[bus.trip.route_short_name];
 	       let filterStopTime = "";
@@ -1262,11 +1543,13 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
 
 	       }
 	   });
-	   //update the number of visible bus in current Map view
-	   let bounds = map.getBounds();
-	   let visibleBuses = busMarkers.filter(marker => bounds.contains(marker.getLatLng()));
-	   document.getElementById('busCount').textContent = visibleBuses.length;
-	   
+
+	   const busCountElement = document.getElementById('busCount');
+	   if (busCountElement) {
+	       const bounds = map.getBounds();
+	       const visibleBuses = busMarkers.filter(marker => bounds.contains(marker.getLatLng()));
+	       busCountElement.textContent = visibleBuses.length;
+	   }
        } catch (error) {
            console.error("Erreur lors du chargement des données distantes:", error);
        }
@@ -1312,8 +1595,9 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
      };
      let currentColorMode = COLOR_MODES.DELAY; // default coloring mode is based on delay
 
-     const defaultCoords = [50.63, 5.56];
-     const defaultZoom = 12;
+	const defaultCoords = Array.isArray(appState.center) && appState.center.length === 2 ? appState.center : [50.63, 5.56];
+	const defaultZoom = Number.isFinite(appState.zoom) ? appState.zoom : 12;
+	currentColorMode = appState.colorMode || COLOR_MODES.DELAY;
      var osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 	 maxZoom: 19,
 	 attribution: '© <a href="https://www.openstreetmap.org/">OpenStreetMap contributors</a>'
@@ -1335,7 +1619,8 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
      });
 
      // tileLayer from thunderforest can be used using an apikey to be set in config.js file
-     if (TILE_API_KEY) {
+	 let defaultBaseMapLabel;
+	 if (TILE_API_KEY) {
 	 var transportTileLayer = L.tileLayer('https://tile.thunderforest.com/transport/{z}/{x}/{y}.png?apikey='+TILE_API_KEY, {
      	     attribution: '© <a href="https://www.openstreetmap.org/">OpenStreetMap</a>, &copy; <a href="https://www.thunderforest.com/maps/transport/">Thunderforest</a>',
    	     maxZoom: 22
@@ -1344,41 +1629,47 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
 	     attribution: '&copy; <a href="https://www.thunderforest.com/maps/transport/">Thunderforest</a> - <a href="https://www.openstreetmap.org/">OpenStreetMap</a>',
    	     maxZoom: 22});
 	 var defaultLayer = transportTileLayer;
+		 defaultBaseMapLabel = "TransportMap (Thunderforest)";
    }
    else { // we use opnvLayer as default
        var transportTileLayer = opnvLayer;
        var cycleMapTileLayer = opnvLayer;
        var defaultLayer = opnvLayer;
+	   defaultBaseMapLabel = "Transport map (Öpnvkarte)";
    }
+
+   var baseMaps = {
+	   "OpenStreetMap": osmLayer,
+	   "OpenStreetMap.HOT": osmHOTLayer,
+	   "CyclOSM": cyclOSMLayer,
+	   "CyleMap (Thunderforest)": cycleMapTileLayer,
+	   "Transport map (Öpnvkarte)": opnvLayer,
+	   "TransportMap (Thunderforest)": transportTileLayer,
+   };
+
+   const selectedBaseMapLabel = baseMaps[appState.baseMap] ? appState.baseMap : defaultBaseMapLabel;
+   const selectedBaseMapLayer = baseMaps[selectedBaseMapLabel] || defaultLayer;
 
    var map = L.map('map', {
        center: defaultCoords,
        zoom: defaultZoom,
-       layers: defaultLayer
+	   layers: [selectedBaseMapLayer],
+	   zoomControl: !isMobileLayout
    });
 
-   var baseMaps = {
-       "OpenStreetMap": osmLayer,
-       "OpenStreetMap.HOT": osmHOTLayer,
-       "CyclOSM": cyclOSMLayer,
-       "CyleMap (Thunderforest)": cycleMapTileLayer,
-       "Transport map (Öpnvkarte)": opnvLayer,
-       "TransportMap (Thunderforest)": transportTileLayer,
-   };
-   var layerControl = L.control.layers(baseMaps).addTo(map);
+   populateBaseMapSelect(baseMaps, selectedBaseMapLabel);
+   applySavedUiState();
+   saveState({
+	 baseMap: selectedBaseMapLabel,
+	 colorMode: currentColorMode,
+	 center: defaultCoords,
+	 zoom: defaultZoom,
+	 busFilter: document.getElementById("busFilter").value
+   });
+
+   var layerControl = !isMobileLayout ? L.control.layers(baseMaps).addTo(map) : null;
    
    
-   // Add geolocation button
-   lc = L.control.locate({
-       follow: true,          // Follow user position in real-time
-       keepCurrentZoomLevel: true, 
-       icon: "fa-solid fa-location-dot", 
-       strings: {
-	   title: "Voir ma position"
-       },
-   }).addTo(map);
-
-
      let first=1;
 
      //define regions to load static schedule on-the-fly
@@ -1418,12 +1709,21 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
 
      //when panning, check the current location and load region data accordingly
      map.on("moveend", async () => {
+	 persistMapView();
 	 const bounds = map.getBounds();
 	 for (const region in regionsBounds) {
 	     if (bounds.intersects(regionsBounds[region])) {
 		 await loadScheduleFile_region(region, currentDayType);
 	     }
 	 }
+     });
+
+     map.on("zoomend", persistMapView);
+     map.on("baselayerchange", event => {
+	 if (!event || !event.name) return;
+	 document.getElementById("baseMapSelect").value = event.name;
+	 saveState({ baseMap: event.name });
+	 persistMapView();
      });
 
      
