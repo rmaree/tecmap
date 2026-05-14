@@ -124,7 +124,7 @@
 	 position: fixed;
 	 right: -400px;
 	 top: 0;
-	 width: 400px;
+	 width: min(400px, 100vw);
 	 height: 100%;
 	 background-color: #fff;
 	 box-shadow: -2px 0 8px rgba(0,0,0,0.2);
@@ -175,15 +175,22 @@
      .bus-schedule {
 	 list-style: none;
 	 margin: 0;
-	 padding-left: 15px; /* margin to clear space left side */
+	 padding: 0; /* padding-left: 15px;*/ /* margin to clear space left side */
      }
 
-     .bus-schedule li::before {
-	 position: absolute;
-	 left: -20px;
-	 color: #0078ff;
-     }
+     /* .bus-schedule li::before { 
+     	position: absolute;
+     	left: -20px;
+	color: #0078ff;
+	} */
      
+     .bus-schedule li {
+	 display: flex;
+	 align-items: flex-start;
+	 gap: 0.5em;
+	 padding: 0;
+	 flex-wrap: wrap;
+     }
      
      #open-alert-btn-popup {
 	 position: left;
