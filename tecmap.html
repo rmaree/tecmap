@@ -17,10 +17,15 @@
     <link rel="icon" type="image/x-icon" href="icon.ico">
     <!-- Android -->
     <link rel="icon" type="image/png" sizes="192x192" href="icon.png">
+	<link rel="manifest" href="manifest.webmanifest">
 
     <!-- iOS -->
     <link rel="apple-touch-icon" href="icon.png">
+	<meta name="theme-color" content="#1b6ec2">
     <meta name="mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="default">
+	<meta name="apple-mobile-web-app-title" content="TECmap">
     
     <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
@@ -503,6 +508,14 @@
    const MAX_FAVORITES = 20;
    const isMobileLayout = window.matchMedia("(max-width: 768px)").matches;
    let appState = loadSavedState();
+
+   if ("serviceWorker" in navigator) {
+	 window.addEventListener("load", () => {
+	     navigator.serviceWorker.register("./service-worker.js").catch(error => {
+		 console.warn("Service worker non enregistre", error);
+	     });
+	 });
+   }
 
    function normalizeFavoriteLine(lineValue) {
 	 if (typeof lineValue !== "string") return "";
