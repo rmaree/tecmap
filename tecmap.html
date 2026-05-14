@@ -420,14 +420,38 @@
    // Utils 
 
    const UI_STORAGE_KEY = "tecmap.ui.v1";
+   const DEFAULT_MAP_CENTER = [50.63, 5.56];
+   const DEFAULT_MAP_ZOOM = 12;
+   const MIN_MAP_ZOOM = 0;
+   const MAX_MAP_ZOOM = 22;
    const isMobileLayout = window.matchMedia("(max-width: 768px)").matches;
    let appState = loadSavedState();
+
+   function isValidCenter(center) {
+	 return Array.isArray(center)
+	     && center.length === 2
+	     && Number.isFinite(center[0])
+	     && Number.isFinite(center[1])
+	     && center[0] >= -90
+	     && center[0] <= 90
+	     && center[1] >= -180
+	     && center[1] <= 180;
+   }
+
+   function getValidZoom(zoom) {
+	 if (!Number.isFinite(zoom)) return DEFAULT_MAP_ZOOM;
+	 return Math.min(MAX_MAP_ZOOM, Math.max(MIN_MAP_ZOOM, zoom));
+   }
 
    function loadSavedState() {
 	 try {
 	     const rawState = localStorage.getItem(UI_STORAGE_KEY);
 	     if (!rawState) return {};
-	     return JSON.parse(rawState) || {};
+	     const parsedState = JSON.parse(rawState);
+	     if (!parsedState || typeof parsedState !== "object" || Array.isArray(parsedState)) {
+		 return {};
+	     }
+	     return parsedState;
 	 } catch (error) {
 	     console.warn("Impossible de relire l'état local", error);
 	     return {};
@@ -501,7 +525,8 @@
 	 const center = map.getCenter();
 	 saveState({
 	     center: [Number(center.lat.toFixed(6)), Number(center.lng.toFixed(6))],
-	     zoom: map.getZoom()
+	     zoom: map.getZoom(),
+	     lastSavedAt: Date.now()
 	 });
    }
 
@@ -1595,8 +1620,8 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
      };
      let currentColorMode = COLOR_MODES.DELAY; // default coloring mode is based on delay
 
-	const defaultCoords = Array.isArray(appState.center) && appState.center.length === 2 ? appState.center : [50.63, 5.56];
-	const defaultZoom = Number.isFinite(appState.zoom) ? appState.zoom : 12;
+	const defaultCoords = isValidCenter(appState.center) ? appState.center : DEFAULT_MAP_CENTER;
+	const defaultZoom = getValidZoom(appState.zoom);
 	currentColorMode = appState.colorMode || COLOR_MODES.DELAY;
      var osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 	 maxZoom: 19,
@@ -1725,6 +1750,13 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
 	 saveState({ baseMap: event.name });
 	 persistMapView();
      });
+
+     document.addEventListener("visibilitychange", () => {
+	 if (document.visibilityState === "hidden") {
+	     persistMapView();
+	 }
+     });
+     window.addEventListener("beforeunload", persistMapView);
 
      
      // Load realtime data (3 sources: updates, vehicles, alerts)
