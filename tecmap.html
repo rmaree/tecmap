@@ -500,7 +500,9 @@
    // ---------------------------------------------------------------------------------------------
    // Utils 
 
-   const UI_STORAGE_KEY = "tecmap.ui.v1";
+	const UI_STORAGE_KEY = "tecmap.ui.v2";
+	const LEGACY_UI_STORAGE_KEYS = ["tecmap.ui.v1"];
+	const UI_STATE_SCHEMA_VERSION = 2;
    const DEFAULT_MAP_CENTER = [50.63, 5.56];
    const DEFAULT_MAP_ZOOM = 12;
    const MIN_MAP_ZOOM = 0;
@@ -511,7 +513,19 @@
 
    if ("serviceWorker" in navigator) {
 	 window.addEventListener("load", () => {
-	     navigator.serviceWorker.register("./service-worker.js").catch(error => {
+	     navigator.serviceWorker.register("./service-worker.js").then(registration => {
+		 // Background update check at each launch.
+		 registration.update().catch(() => {});
+		 registration.addEventListener("updatefound", () => {
+		     const newWorker = registration.installing;
+		     if (!newWorker) return;
+		     newWorker.addEventListener("statechange", () => {
+			 if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+			     console.info("Nouvelle version prete: elle sera utilisee au prochain lancement.");
+			 }
+		     });
+		 });
+	     }).catch(error => {
 		 console.warn("Service worker non enregistre", error);
 	     });
 	 });
@@ -653,23 +667,57 @@
 	 return Math.min(MAX_MAP_ZOOM, Math.max(MIN_MAP_ZOOM, zoom));
    }
 
+   function migrateUiState(rawState) {
+	 if (!rawState || typeof rawState !== "object" || Array.isArray(rawState)) {
+	     return { schemaVersion: UI_STATE_SCHEMA_VERSION };
+	 }
+
+	 const nextState = { ...rawState };
+	 let schemaVersion = Number.isInteger(nextState.schemaVersion) ? nextState.schemaVersion : 1;
+
+	 if (schemaVersion < 2) {
+	     if (Array.isArray(nextState.favoriteLines)) {
+		 nextState.favoriteLines = [...new Set(nextState.favoriteLines.map(normalizeFavoriteLine).filter(Boolean))].slice(0, MAX_FAVORITES);
+	     }
+	     if (Array.isArray(nextState.activeFavoriteLines)) {
+		 nextState.activeFavoriteLines = [...new Set(nextState.activeFavoriteLines.map(normalizeFavoriteLine).filter(Boolean))];
+	     }
+	     if (nextState.mobileControlsExpanded !== undefined && typeof nextState.mobileControlsExpanded !== "boolean") {
+		 delete nextState.mobileControlsExpanded;
+	     }
+	     schemaVersion = 2;
+	 }
+
+	 nextState.schemaVersion = schemaVersion > UI_STATE_SCHEMA_VERSION ? UI_STATE_SCHEMA_VERSION : schemaVersion;
+	 return nextState;
+   }
+
    function loadSavedState() {
 	 try {
-	     const rawState = localStorage.getItem(UI_STORAGE_KEY);
-	     if (!rawState) return {};
-	     const parsedState = JSON.parse(rawState);
-	     if (!parsedState || typeof parsedState !== "object" || Array.isArray(parsedState)) {
-		 return {};
+	     const storageKeys = [UI_STORAGE_KEY, ...LEGACY_UI_STORAGE_KEYS];
+	     for (const key of storageKeys) {
+		 const rawState = localStorage.getItem(key);
+		 if (!rawState) continue;
+		 const parsedState = JSON.parse(rawState);
+		 const migratedState = migrateUiState(parsedState);
+		 const needsRewrite = key !== UI_STORAGE_KEY || migratedState.schemaVersion !== parsedState?.schemaVersion;
+		 if (needsRewrite) {
+		     localStorage.setItem(UI_STORAGE_KEY, JSON.stringify(migratedState));
+		     if (key !== UI_STORAGE_KEY) {
+			 localStorage.removeItem(key);
+		     }
+		 }
+		 return migratedState;
 	     }
-	     return parsedState;
+	     return { schemaVersion: UI_STATE_SCHEMA_VERSION };
 	 } catch (error) {
 	     console.warn("Impossible de relire l'état local", error);
-	     return {};
+	     return { schemaVersion: UI_STATE_SCHEMA_VERSION };
 	 }
    }
 
    function saveState(patch) {
-	 appState = { ...appState, ...patch };
+	 appState = { ...appState, ...patch, schemaVersion: UI_STATE_SCHEMA_VERSION };
 	 try {
 	     localStorage.setItem(UI_STORAGE_KEY, JSON.stringify(appState));
 	 } catch (error) {

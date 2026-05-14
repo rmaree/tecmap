@@ -1,8 +1,9 @@
-const CACHE_NAME = "tecmap-shell-v1";
+const CACHE_NAME = "tecmap-shell-v3";
 const APP_SHELL = [
   "./",
   "./tecmap.html",
   "./config.js",
+  "./manifest.webmanifest",
   "./leaflet-tilelayer-colorfilter-global.min.js",
   "./data/stops_with_coords.js",
   "./data/routes.js",
@@ -38,9 +39,44 @@ self.addEventListener("fetch", event => {
   const requestUrl = new URL(request.url);
   if (requestUrl.origin !== self.location.origin) return;
 
+  // Fast launch: serve cached HTML first, refresh in background.
+  const isNavigation = request.mode === "navigate";
+  const isHtmlRequest = request.headers.get("accept")?.includes("text/html");
+  if (isNavigation || isHtmlRequest) {
+    const backgroundUpdate = fetch(request)
+      .then(networkResponse => {
+        if (!networkResponse || networkResponse.status !== 200) return;
+        const responseCopy = networkResponse.clone();
+        return caches.open(CACHE_NAME).then(cache => cache.put(request, responseCopy));
+      })
+      .catch(() => {});
+
+    event.respondWith(
+      caches.match(request)
+        .then(cached => cached || caches.match("./tecmap.html"))
+        .then(cachedOrFallback => {
+          if (cachedOrFallback) return cachedOrFallback;
+          return fetch(request);
+        })
+    );
+    event.waitUntil(backgroundUpdate);
+    return;
+  }
+
   event.respondWith(
     caches.match(request).then(cachedResponse => {
-      if (cachedResponse) return cachedResponse;
+      if (cachedResponse) {
+        // Background refresh for next visit.
+        fetch(request)
+          .then(networkResponse => {
+            if (networkResponse && networkResponse.status === 200) {
+              const responseCopy = networkResponse.clone();
+              caches.open(CACHE_NAME).then(cache => cache.put(request, responseCopy));
+            }
+          })
+          .catch(() => {});
+        return cachedResponse;
+      }
 
       return fetch(request).then(networkResponse => {
         if (!networkResponse || networkResponse.status !== 200) {
