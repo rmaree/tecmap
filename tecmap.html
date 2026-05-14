@@ -1677,15 +1677,9 @@
 	       });
 	   }
 	   
-	   // Check and reinitialize busMarkers 
-	   if (!Array.isArray(busMarkers)) {
-	       busMarkers = [];
-	   }
-	   // Delete old bus markers from map
-	   if (busMarkers) {
-	       busMarkers.forEach(marker => map.removeLayer(marker));
-	       busMarkers = [];
-	   }
+	   // Delete old bus markers from map and reset
+	   Object.values(busMarkers).forEach(marker => map.removeLayer(marker));
+	   busMarkers = {};
 
 	   if (first) { // we wait for horairesData to be loaded on first execution
 	       await waitForHorairesData()
@@ -1774,7 +1768,7 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
 	   const busCountElement = document.getElementById('busCount');
 	   if (busCountElement) {
 	       const bounds = map.getBounds();
-	       const visibleBuses = busMarkers.filter(marker => bounds.contains(marker.getLatLng()));
+	       const visibleBuses = Object.values(busMarkers).filter(marker => bounds.contains(marker.getLatLng()));
 	       busCountElement.textContent = visibleBuses.length;
 	   }
        } catch (error) {
