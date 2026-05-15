@@ -550,6 +550,8 @@
 
    if ("serviceWorker" in navigator) {
 	 let shouldReloadForUpdate = false;
+	 let lastSeenVersion = window.TECMAP_VERSION;
+	 let swRegistration = null;
 
 	 const askToInstallUpdate = worker => {
 	     if (!worker || !navigator.serviceWorker.controller) return;
@@ -568,8 +570,31 @@
 	     window.location.reload();
 	 });
 
+	 // Periodically check if version.js has changed and trigger update if so
+	 const checkVersionForUpdates = async () => {
+	     try {
+		 const response = await fetch("./version.js?_=" + Date.now());
+		 const text = await response.text();
+		 const versionMatch = text.match(/TECMAP_VERSION\s*=\s*"([^"]+)"/);
+		 if (versionMatch && versionMatch[1] !== lastSeenVersion) {
+		     lastSeenVersion = versionMatch[1];
+		     if (swRegistration) {
+			 // Unregister and re-register with cache-busting to force update detection
+			 await swRegistration.unregister();
+			 navigator.serviceWorker.register("./service-worker.js?v=" + Date.now()).catch(() => {});
+		     }
+		 }
+	     } catch (error) {
+		 console.warn("Impossible de vérifier la version", error);
+	     }
+	 };
+
+	 // Check for version updates every 2 minutes
+	 setInterval(checkVersionForUpdates, 2 * 60 * 1000);
+
 	 window.addEventListener("load", () => {
 	     navigator.serviceWorker.register("./service-worker.js").then(registration => {
+		 swRegistration = registration;
 		 // Background update check at each launch.
 		 registration.update().catch(() => {});
 		 if (registration.waiting) {

@@ -1,6 +1,6 @@
 importScripts("./version.js");
 
-const CACHE_NAME = `tecmap-shell-${self.TECMAP_VERSION || "dev"}`;
+const CACHE_NAME = `tecmap-shell-${self.TECMAP_VERSION || "dev"}`; 
 const APP_SHELL = [
   "./",
   "./tecmap.html",
