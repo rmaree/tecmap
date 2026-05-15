@@ -47,6 +47,12 @@ self.addEventListener("fetch", event => {
   const requestUrl = new URL(request.url);
   if (requestUrl.origin !== self.location.origin) return;
 
+  // Always fetch version.js from network so update detection always gets the latest value
+  if (requestUrl.pathname.endsWith("/version.js")) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   // Fast launch: serve cached HTML first, refresh in background.
   const isNavigation = request.mode === "navigate";
   const isHtmlRequest = request.headers.get("accept")?.includes("text/html");

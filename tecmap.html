@@ -552,12 +552,29 @@
 	 let shouldReloadForUpdate = false;
 	 let lastSeenVersion = window.TECMAP_VERSION;
 	 let swRegistration = null;
+	 const SKIP_SW_PROMPT_ONCE_KEY = "tecmap.skipSwPromptOnce";
+	 let promptInProgress = false;
+
+	 function confirmInstallUpdate() {
+	     if (promptInProgress) return false;
+	     promptInProgress = true;
+	     const updatePromptMessage = "Une mise a jour de l'application est disponible."
+		 + "\n"
+		 + "Installer maintenant ?";
+	     const installNow = window.confirm(
+		 updatePromptMessage
+	     );
+	     promptInProgress = false;
+	     return installNow;
+	 }
 
 	 const askToInstallUpdate = worker => {
 	     if (!worker || !navigator.serviceWorker.controller) return;
-	     const installNow = window.confirm(
-		 "Une mise a jour de l'application est disponible.\\nInstaller maintenant ?"
-	     );
+	     if (sessionStorage.getItem(SKIP_SW_PROMPT_ONCE_KEY) === "1") {
+		 sessionStorage.removeItem(SKIP_SW_PROMPT_ONCE_KEY);
+		 return;
+	     }
+	     const installNow = confirmInstallUpdate();
 	     if (installNow) {
 		 shouldReloadForUpdate = true;
 		 worker.postMessage({ type: "SKIP_WAITING" });
@@ -570,18 +587,22 @@
 	     window.location.reload();
 	 });
 
-	 // Periodically check if version.js has changed and trigger update if so
+	 // Periodically check if version.js has changed on the server
 	 const checkVersionForUpdates = async () => {
 	     try {
-		 const response = await fetch("./version.js?_=" + Date.now());
+		 const response = await fetch(`./version.js?t=${Date.now()}`, { cache: "no-store" });
+		 if (!response.ok) return;
 		 const text = await response.text();
 		 const versionMatch = text.match(/TECMAP_VERSION\s*=\s*"([^"]+)"/);
 		 if (versionMatch && versionMatch[1] !== lastSeenVersion) {
-		     lastSeenVersion = versionMatch[1];
-		     if (swRegistration) {
-			 // Unregister and re-register with cache-busting to force update detection
-			 await swRegistration.unregister();
-			 navigator.serviceWorker.register("./service-worker.js?v=" + Date.now()).catch(() => {});
+		     const installNow = confirmInstallUpdate();
+		     if (installNow) {
+			 // Avoid immediate duplicate prompt from a waiting SW just after reload.
+			 sessionStorage.setItem(SKIP_SW_PROMPT_ONCE_KEY, "1");
+			 window.location.reload();
+		     } else {
+			 // Don't ask again until next version change
+			 lastSeenVersion = versionMatch[1];
 		     }
 		 }
 	     } catch (error) {
@@ -589,14 +610,29 @@
 	     }
 	 };
 
+	 const triggerVersionCheck = () => {
+	     checkVersionForUpdates().catch(() => {});
+	 };
+
 	 // Check for version updates every 2 minutes
-	 setInterval(checkVersionForUpdates, 2 * 60 * 1000);
+	 setInterval(triggerVersionCheck, 2 * 60 * 1000);
+	 // Extra checks to handle iOS lifecycle throttling/backgrounding.
+	 window.addEventListener("focus", triggerVersionCheck);
+	 window.addEventListener("online", triggerVersionCheck);
+	 window.addEventListener("pageshow", triggerVersionCheck);
+	 document.addEventListener("visibilitychange", () => {
+	     if (document.visibilityState === "visible") {
+		 triggerVersionCheck();
+	     }
+	 });
 
 	 window.addEventListener("load", () => {
-	     navigator.serviceWorker.register("./service-worker.js").then(registration => {
+	     navigator.serviceWorker.register("./service-worker.js", { updateViaCache: "none" }).then(registration => {
 		 swRegistration = registration;
 		 // Background update check at each launch.
 		 registration.update().catch(() => {});
+		 triggerVersionCheck();
+		 setTimeout(triggerVersionCheck, 3000);
 		 if (registration.waiting) {
 		     askToInstallUpdate(registration.waiting);
 		 }
