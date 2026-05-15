@@ -1,8 +1,11 @@
-const CACHE_NAME = "tecmap-shell-v3";
+importScripts("./version.js");
+
+const CACHE_NAME = `tecmap-shell-${self.TECMAP_VERSION || "dev"}`;
 const APP_SHELL = [
   "./",
   "./tecmap.html",
   "./config.js",
+  "./version.js",
   "./manifest.webmanifest",
   "./leaflet-tilelayer-colorfilter-global.min.js",
   "./data/stops_with_coords.js",
@@ -15,7 +18,12 @@ self.addEventListener("install", event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))
   );
-  self.skipWaiting();
+});
+
+self.addEventListener("message", event => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener("activate", event => {

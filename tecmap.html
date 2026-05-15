@@ -10,7 +10,8 @@
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     
-    <script src="config.js"></script>  <!-- load configuration variables -->
+	<script src="version.js"></script>
+	<script src="config.js"></script>  <!-- load configuration variables -->
 
     <link rel="icon" href="icon.ico" type="image/x-icon">
 
@@ -233,6 +234,14 @@
 	 margin: 6px 0 0;
 	 font-size: 13px;
 	 color: #425466;
+     }
+
+     .settings-version {
+	 margin: 6px 0 0;
+	 width: 100%;
+	 text-align: right;
+	 font-size: 11px;
+	 color: #6a7784;
      }
 
      .mobile-only {
@@ -481,6 +490,7 @@
 	    <label for="baseMapSelect">Fond</label>
 	    <select id="baseMapSelect" onchange="updateBaseMap()"></select>
 	    <a class="filter-help" href="#" onclick="showColorLegendInPanel()" title="Aide / Légende">Aide / Légende</a>
+	    <p id="settings-version" class="settings-version" aria-live="polite"></p>
 	</div>
 	<p class="filter-stats desktop-only">Bus visibles : <span id="busCount">0</span></p>
     </div>
@@ -509,6 +519,7 @@
 	const UI_STORAGE_KEY = "tecmap.ui.v2";
 	const LEGACY_UI_STORAGE_KEYS = ["tecmap.ui.v1"];
 	const UI_STATE_SCHEMA_VERSION = 2;
+	const APP_VERSION = window.TECMAP_VERSION || "dev";
    const DEFAULT_MAP_CENTER = [50.63, 5.56];
    const DEFAULT_MAP_ZOOM = 12;
    const MIN_MAP_ZOOM = 0;
@@ -517,17 +528,47 @@
    const isMobileLayout = window.matchMedia("(max-width: 768px)").matches;
    let appState = loadSavedState();
 
+	function renderAppVersion() {
+	    const versionNode = document.getElementById("settings-version");
+	    if (!versionNode) return;
+	    versionNode.textContent = `Version ${APP_VERSION}`;
+	}
+
+	renderAppVersion();
+
    if ("serviceWorker" in navigator) {
+	 let shouldReloadForUpdate = false;
+
+	 const askToInstallUpdate = worker => {
+	     if (!worker || !navigator.serviceWorker.controller) return;
+	     const installNow = window.confirm(
+		 "Une mise a jour de l'application est disponible.\\nInstaller maintenant ?"
+	     );
+	     if (installNow) {
+		 shouldReloadForUpdate = true;
+		 worker.postMessage({ type: "SKIP_WAITING" });
+	     }
+	 };
+
+	 navigator.serviceWorker.addEventListener("controllerchange", () => {
+	     if (!shouldReloadForUpdate) return;
+	     shouldReloadForUpdate = false;
+	     window.location.reload();
+	 });
+
 	 window.addEventListener("load", () => {
 	     navigator.serviceWorker.register("./service-worker.js").then(registration => {
 		 // Background update check at each launch.
 		 registration.update().catch(() => {});
+		 if (registration.waiting) {
+		     askToInstallUpdate(registration.waiting);
+		 }
 		 registration.addEventListener("updatefound", () => {
 		     const newWorker = registration.installing;
 		     if (!newWorker) return;
 		     newWorker.addEventListener("statechange", () => {
 			 if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-			     console.info("Nouvelle version prete: elle sera utilisee au prochain lancement.");
+			     askToInstallUpdate(newWorker);
 			 }
 		     });
 		 });
