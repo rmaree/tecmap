@@ -244,6 +244,11 @@
 	 color: #6a7784;
      }
 
+     .settings-version-desktop {
+	 text-align: left;
+	 margin-top: 2px;
+     }
+
      .mobile-only {
 	 display: none;
      }
@@ -490,9 +495,10 @@
 	    <label for="baseMapSelect">Fond</label>
 	    <select id="baseMapSelect" onchange="updateBaseMap()"></select>
 	    <a class="filter-help" href="#" onclick="showColorLegendInPanel()" title="Aide / Légende">Aide / Légende</a>
-	    <p id="settings-version" class="settings-version" aria-live="polite"></p>
+	    <p id="settings-version-mobile" class="settings-version mobile-only" aria-live="polite"></p>
 	</div>
 	<p class="filter-stats desktop-only">Bus visibles : <span id="busCount">0</span></p>
+	<p id="settings-version-desktop" class="settings-version settings-version-desktop desktop-only" aria-live="polite"></p>
     </div>
 
   
@@ -529,9 +535,15 @@
    let appState = loadSavedState();
 
 	function renderAppVersion() {
-	    const versionNode = document.getElementById("settings-version");
-	    if (!versionNode) return;
-	    versionNode.textContent = `Version ${APP_VERSION}`;
+	    const versionText = `Version ${APP_VERSION}`;
+	    const mobileVersionNode = document.getElementById("settings-version-mobile");
+	    const desktopVersionNode = document.getElementById("settings-version-desktop");
+	    if (mobileVersionNode) {
+		mobileVersionNode.textContent = versionText;
+	    }
+	    if (desktopVersionNode) {
+		desktopVersionNode.textContent = versionText;
+	    }
 	}
 
 	renderAppVersion();
