@@ -10,17 +10,23 @@
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     
-    <script src="config.js"></script>  <!-- load configuration variables -->
+	<script src="version.js"></script>
+	<script src="config.js"></script>  <!-- load configuration variables -->
 
     <link rel="icon" href="icon.ico" type="image/x-icon">
 
     <link rel="icon" type="image/x-icon" href="icon.ico">
     <!-- Android -->
     <link rel="icon" type="image/png" sizes="192x192" href="icon.png">
+	<link rel="manifest" href="manifest.webmanifest">
 
     <!-- iOS -->
     <link rel="apple-touch-icon" href="icon.png">
+	<meta name="theme-color" content="#1b6ec2">
     <meta name="mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="default">
+	<meta name="apple-mobile-web-app-title" content="TECmap">
     
     <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
@@ -36,9 +42,6 @@
     <!-- Leaflet geolocalisation control -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.css" />
-    <script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.js"></script>
-
     <script src="leaflet-tilelayer-colorfilter-global.min.js"></script>
     
     <!-- Style FontAwesome pour les icônes -->
@@ -49,7 +52,210 @@
     
     
     <style>
-     #map { height: 97dvh; padding-bottom: 10px; }
+     html, body {
+	 height: 100%;
+	 margin: 0;
+	 padding: 0;
+     }
+
+     body {
+	 overflow: hidden;
+	 font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	 background: #f4f6f8;
+     }
+
+     #map {
+	 height: 100dvh;
+	 width: 100vw;
+	 padding-bottom: 0;
+	 margin: 0;
+	 inset: 0;
+	 position: relative;
+     }
+
+     #filter-container {
+	 position: absolute;
+	 top: 10px;
+	 left: 56px;
+	 right: 10px;
+	 max-width: 360px;
+	 background: rgba(255, 255, 255, 0.96);
+	 padding: 8px 10px;
+	 border-radius: 12px;
+	 box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+	 z-index: 1000;
+	 backdrop-filter: blur(8px);
+     }
+
+     .filter-row {
+	 display: flex;
+	 align-items: center;
+	 gap: 6px;
+     }
+
+     .filter-row + .filter-row {
+	 margin-top: 6px;
+     }
+
+     .filter-input {
+	 flex: 1;
+	 min-width: 0;
+	 font-size: 16px;
+	 padding: 9px 10px;
+	 border: 1px solid #c8d0d8;
+	 border-radius: 10px;
+	 background: #fff;
+     }
+
+     .filter-action,
+     .filter-toggle {
+	 display: inline-flex;
+	 align-items: center;
+	 justify-content: center;
+	 min-width: 40px;
+	 min-height: 40px;
+	 margin: 0;
+	 padding: 0 10px;
+	 border: 1px solid #c8d0d8;
+	 border-radius: 10px;
+	 background: #fff;
+	 color: #22303c;
+	 font-size: 16px;
+	 cursor: pointer;
+     }
+
+	.filter-action[disabled],
+	.filter-toggle[disabled] {
+	 opacity: 0.6;
+	 cursor: default;
+	}
+
+     .filter-secondary {
+	 display: flex;
+	 align-items: center;
+	 gap: 6px;
+	 flex-wrap: wrap;
+     }
+
+     .filter-secondary label {
+	 font-size: 13px;
+	 color: #425466;
+	 white-space: nowrap;
+     }
+
+     .filter-secondary select {
+	 flex: 1;
+	 min-width: 120px;
+	 font-size: 14px;
+	 padding: 8px 10px;
+	 border: 1px solid #c8d0d8;
+	 border-radius: 10px;
+	 background: #fff;
+     }
+
+     .favorites-controls {
+	 display: flex;
+	 align-items: center;
+	 gap: 6px;
+	 width: 100%;
+     }
+
+     .favorites-input {
+	 flex: 1;
+	 min-width: 0;
+	 font-size: 14px;
+	 padding: 8px 10px;
+	 border: 1px solid #c8d0d8;
+	 border-radius: 10px;
+	 background: #fff;
+     }
+
+     .favorites-bar {
+	 display: flex;
+	 flex-wrap: wrap;
+	 gap: 6px;
+	 padding: 2px 8px 6px;
+     }
+
+     .favorites-list {
+	 display: flex;
+	 flex-wrap: wrap;
+	 gap: 6px;
+	 width: 100%;
+     }
+
+     .favorite-item {
+	 display: inline-flex;
+	 align-items: center;
+	 border: 1px solid #d0d8e2;
+	 border-radius: 999px;
+	 background: #fff;
+	 overflow: hidden;
+     }
+
+     .favorite-chip,
+     .favorite-remove {
+	 margin-bottom: 0;
+	 border: none;
+	 background: transparent;
+	 padding: 5px 9px;
+	 font-size: 13px;
+	 color: #233444;
+	 cursor: pointer;
+	 line-height: 1;
+     }
+
+     .favorite-chip.active {
+	 background: #1b6ec2;
+	 color: #fff;
+	 font-weight: 600;
+     }
+
+     .favorite-remove {
+	 border-left: 1px solid #d0d8e2;
+	 color: #6a7784;
+	 min-width: 26px;
+	 padding: 5px 7px;
+     }
+
+     .favorite-empty {
+	 font-size: 12px;
+	 color: #6a7784;
+	 padding: 4px 2px;
+     }
+
+     .filter-help {
+	 color: #22303c;
+	 font-size: 16px;
+	 text-decoration: none;
+     }
+
+     .filter-stats {
+	 margin: 6px 0 0;
+	 font-size: 13px;
+	 color: #425466;
+     }
+
+     .settings-version {
+	 margin: 6px 0 0;
+	 width: 100%;
+	 text-align: right;
+	 font-size: 11px;
+	 color: #6a7784;
+     }
+
+     .settings-version-desktop {
+	 text-align: left;
+	 margin-top: 2px;
+     }
+
+     .mobile-only {
+	 display: none;
+     }
+
+	.desktop-only {
+	 display: block;
+	}
 
      .custom-user-marker {
 	 font-size: 44px;
@@ -226,6 +432,39 @@
 	 box-shadow: none;
      }
 
+     @media (max-width: 768px) {
+	 #filter-container {
+	    left: 8px;
+	    right: 8px;
+	    top: 8px;
+	    max-width: none;
+	    padding: 8px;
+	 }
+
+	 /* iOS Safari auto-zooms focused inputs smaller than 16px. */
+	 .favorites-input,
+	 .filter-secondary select {
+	    font-size: 16px;
+	 }
+
+	 .desktop-only {
+	    display: none;
+	 }
+
+	 .mobile-only {
+	    display: inline-flex;
+	 }
+
+	 #filter-container.mobile-collapsed .filter-secondary {
+	    display: none;
+	 }
+
+	 #side-panel {
+	    width: min(100vw, 400px);
+	    right: calc(-1 * min(100vw, 400px));
+	 }
+     }
+
      
 
 
@@ -233,22 +472,33 @@
 </head>
 <body>
     
-    <div id="filter-container" style="position: absolute; top: 10px; left: 50px; background: white; padding: 5px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 1000;">
-	<div style="display: flex; align-items: center; gap: 3px; margin-bottom: 4px;">
-	    <input type="text" id="busFilter" placeholder="Filtrer par ligne" oninput="fetchRealTimeBusData(0)" style="flex:1;">
-	    <button onclick="clearFilter()">❌</button>
+    <div id="filter-container" class="mobile-collapsed">
+	<div class="filter-row">
+	    <input type="text" id="busFilter" class="filter-input" placeholder="Filtrer par ligne" oninput="handleFilterInput()">
+	    <button type="button" class="filter-action" onclick="clearFilter()" aria-label="Effacer le filtre">✕</button>
+	    <button type="button" id="recenter-btn" class="filter-action" onclick="recenterMapOnUser()" aria-label="Recentrer sur ma position">📍</button>
+	    <button type="button" id="mobile-settings-toggle" class="filter-toggle mobile-only" onclick="toggleMobileControls()" aria-expanded="false" aria-controls="filter-secondary">⚙</button>
 	</div>
-	<div style="display: flex; align-items: center; gap: 6px;">
-	    <label for="colorModeSelect">Mode couleurs:</label>
+	<div id="favorites-bar" class="favorites-bar" hidden>
+	    <div id="favorites-list" class="favorites-list"></div>
+	</div>
+	<div id="filter-secondary" class="filter-row filter-secondary">
+	    <div class="favorites-controls">
+		<input type="text" id="favoriteLineInput" class="favorites-input" placeholder="Ajouter un favori (ex: 58)" onkeydown="handleFavoriteInputKeydown(event)">
+		<button type="button" class="filter-action" onclick="addFavoriteLineFromInput()" aria-label="Ajouter un favori">★+</button>
+	    </div>
+	    <label for="colorModeSelect">Couleurs</label>
 	    <select id="colorModeSelect" onchange="updateColorMode()">
 		<option value="delay">Retard / avance</option>
 		<option value="speed">Vitesse</option>
 	    </select>
-	    <span title="Aide">
-		<a href="#" onclick="showColorLegendInPanel()"><i class="fa-solid fa-question"></i></a>
-	    </span>
+	    <label for="baseMapSelect">Fond</label>
+	    <select id="baseMapSelect" onchange="updateBaseMap()"></select>
+	    <a class="filter-help" href="#" onclick="showColorLegendInPanel()" title="Aide / Légende">Aide / Légende</a>
+	    <p id="settings-version-mobile" class="settings-version mobile-only" aria-live="polite"></p>
 	</div>
-	<p style="margin: 4px 0 0;">Bus visibles : <span id="busCount">0</span></p>
+	<p class="filter-stats desktop-only">Bus visibles : <span id="busCount">0</span></p>
+	<p id="settings-version-desktop" class="settings-version settings-version-desktop desktop-only" aria-live="polite"></p>
     </div>
 
   
@@ -271,6 +521,423 @@
     <script>
    // ---------------------------------------------------------------------------------------------
    // Utils 
+
+	const UI_STORAGE_KEY = "tecmap.ui.v2";
+	const LEGACY_UI_STORAGE_KEYS = ["tecmap.ui.v1"];
+	const UI_STATE_SCHEMA_VERSION = 2;
+	const APP_VERSION = window.TECMAP_VERSION || "dev";
+   const DEFAULT_MAP_CENTER = [50.63, 5.56];
+   const DEFAULT_MAP_ZOOM = 12;
+   const MIN_MAP_ZOOM = 0;
+   const MAX_MAP_ZOOM = 22;
+   const MAX_FAVORITES = 20;
+   const isMobileLayout = window.matchMedia("(max-width: 768px)").matches;
+   let appState = loadSavedState();
+
+	function renderAppVersion() {
+	    const versionText = `Version ${APP_VERSION}`;
+	    const mobileVersionNode = document.getElementById("settings-version-mobile");
+	    const desktopVersionNode = document.getElementById("settings-version-desktop");
+	    if (mobileVersionNode) {
+		mobileVersionNode.textContent = versionText;
+	    }
+	    if (desktopVersionNode) {
+		desktopVersionNode.textContent = versionText;
+	    }
+	}
+
+	renderAppVersion();
+
+   if ("serviceWorker" in navigator) {
+	 let shouldReloadForUpdate = false;
+	 let lastSeenVersion = window.TECMAP_VERSION;
+	 let swRegistration = null;
+	 const SKIP_SW_PROMPT_ONCE_KEY = "tecmap.skipSwPromptOnce";
+	 let promptInProgress = false;
+
+	 function confirmInstallUpdate() {
+	     if (promptInProgress) return false;
+	     promptInProgress = true;
+	     const updatePromptMessage = "Une mise a jour de l'application est disponible."
+		 + "\n"
+		 + "Installer maintenant ?";
+	     const installNow = window.confirm(
+		 updatePromptMessage
+	     );
+	     promptInProgress = false;
+	     return installNow;
+	 }
+
+	 const askToInstallUpdate = worker => {
+	     if (!worker || !navigator.serviceWorker.controller) return;
+	     if (sessionStorage.getItem(SKIP_SW_PROMPT_ONCE_KEY) === "1") {
+		 sessionStorage.removeItem(SKIP_SW_PROMPT_ONCE_KEY);
+		 return;
+	     }
+	     const installNow = confirmInstallUpdate();
+	     if (installNow) {
+		 shouldReloadForUpdate = true;
+		 worker.postMessage({ type: "SKIP_WAITING" });
+	     }
+	 };
+
+	 navigator.serviceWorker.addEventListener("controllerchange", () => {
+	     if (!shouldReloadForUpdate) return;
+	     shouldReloadForUpdate = false;
+	     window.location.reload();
+	 });
+
+	 // Periodically check if version.js has changed on the server
+	 const checkVersionForUpdates = async () => {
+	     try {
+		 const response = await fetch(`./version.js?t=${Date.now()}`, { cache: "no-store" });
+		 if (!response.ok) return;
+		 const text = await response.text();
+		 const versionMatch = text.match(/TECMAP_VERSION\s*=\s*"([^"]+)"/);
+		 if (versionMatch && versionMatch[1] !== lastSeenVersion) {
+		     const installNow = confirmInstallUpdate();
+		     if (installNow) {
+			 // Avoid immediate duplicate prompt from a waiting SW just after reload.
+			 sessionStorage.setItem(SKIP_SW_PROMPT_ONCE_KEY, "1");
+			 window.location.reload();
+		     } else {
+			 // Don't ask again until next version change
+			 lastSeenVersion = versionMatch[1];
+		     }
+		 }
+	     } catch (error) {
+		 console.warn("Impossible de vérifier la version", error);
+	     }
+	 };
+
+	 const triggerVersionCheck = () => {
+	     checkVersionForUpdates().catch(() => {});
+	 };
+
+	 // Check for version updates every 2 minutes
+	 setInterval(triggerVersionCheck, 2 * 60 * 1000);
+	 // Extra checks to handle iOS lifecycle throttling/backgrounding.
+	 window.addEventListener("focus", triggerVersionCheck);
+	 window.addEventListener("online", triggerVersionCheck);
+	 window.addEventListener("pageshow", triggerVersionCheck);
+	 document.addEventListener("visibilitychange", () => {
+	     if (document.visibilityState === "visible") {
+		 triggerVersionCheck();
+	     }
+	 });
+
+	 window.addEventListener("load", () => {
+	     navigator.serviceWorker.register("./service-worker.js", { updateViaCache: "none" }).then(registration => {
+		 swRegistration = registration;
+		 // Background update check at each launch.
+		 registration.update().catch(() => {});
+		 triggerVersionCheck();
+		 setTimeout(triggerVersionCheck, 3000);
+		 if (registration.waiting) {
+		     askToInstallUpdate(registration.waiting);
+		 }
+		 registration.addEventListener("updatefound", () => {
+		     const newWorker = registration.installing;
+		     if (!newWorker) return;
+		     newWorker.addEventListener("statechange", () => {
+			 if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+			     askToInstallUpdate(newWorker);
+			 }
+		     });
+		 });
+	     }).catch(error => {
+		 console.warn("Service worker non enregistre", error);
+	     });
+	 });
+   }
+
+   function normalizeFavoriteLine(lineValue) {
+	 if (typeof lineValue !== "string") return "";
+	 return lineValue.trim().toUpperCase();
+   }
+
+   function getSanitizedFavoriteState(state) {
+	 const rawFavorites = Array.isArray(state.favoriteLines) ? state.favoriteLines : [];
+	 const favoriteLines = [...new Set(rawFavorites.map(normalizeFavoriteLine).filter(Boolean))].slice(0, MAX_FAVORITES);
+
+	 const rawActive = Array.isArray(state.activeFavoriteLines) ? state.activeFavoriteLines : favoriteLines;
+	 const activeFavoriteLines = [...new Set(rawActive.map(normalizeFavoriteLine).filter(Boolean))]
+	     .filter(line => favoriteLines.includes(line));
+
+	 return { favoriteLines, activeFavoriteLines };
+   }
+
+   function applyFavoriteState(favoriteLines, activeFavoriteLines) {
+	 appState.favoriteLines = favoriteLines;
+	 appState.activeFavoriteLines = activeFavoriteLines;
+	 saveState({ favoriteLines, activeFavoriteLines });
+   }
+
+   function renderFavoriteLines() {
+	 const container = document.getElementById("favorites-list");
+	 if (!container) return;
+	 container.innerHTML = "";
+
+	 const bar = document.getElementById("favorites-bar");
+	 const { favoriteLines, activeFavoriteLines } = getSanitizedFavoriteState(appState);
+	 if (favoriteLines.length === 0) {
+	     if (bar) bar.hidden = true;
+	     return;
+	 }
+	 if (bar) bar.hidden = false;
+
+	 favoriteLines.forEach(line => {
+	     const wrapper = document.createElement("div");
+	     wrapper.className = "favorite-item";
+
+	     const toggleButton = document.createElement("button");
+	     toggleButton.type = "button";
+	     toggleButton.className = `favorite-chip${activeFavoriteLines.includes(line) ? " active" : ""}`;
+	     toggleButton.textContent = line;
+	     toggleButton.title = activeFavoriteLines.includes(line)
+		 ? `Favori actif ${line}`
+		 : `Activer ${line}`;
+	     toggleButton.addEventListener("click", () => toggleFavoriteLine(line));
+
+	     const removeButton = document.createElement("button");
+	     removeButton.type = "button";
+	     removeButton.className = "favorite-remove";
+	     removeButton.textContent = "✕";
+	     removeButton.title = `Supprimer le favori ${line}`;
+	     removeButton.addEventListener("click", () => removeFavoriteLine(line));
+
+	     wrapper.appendChild(toggleButton);
+	     wrapper.appendChild(removeButton);
+	     container.appendChild(wrapper);
+	 });
+   }
+
+   function initializeFavoriteState() {
+	 const { favoriteLines, activeFavoriteLines } = getSanitizedFavoriteState(appState);
+	 applyFavoriteState(favoriteLines, activeFavoriteLines);
+	 renderFavoriteLines();
+   }
+
+   function addFavoriteLine(lineValue) {
+	 const normalizedLine = normalizeFavoriteLine(lineValue);
+	 if (!normalizedLine) return;
+
+	 const { favoriteLines, activeFavoriteLines } = getSanitizedFavoriteState(appState);
+	 if (!favoriteLines.includes(normalizedLine)) {
+	     favoriteLines.push(normalizedLine);
+	 }
+	 const nextFavorites = favoriteLines.slice(0, MAX_FAVORITES);
+	 const nextActive = [...new Set([...activeFavoriteLines, normalizedLine])].filter(line => nextFavorites.includes(line));
+
+	 applyFavoriteState(nextFavorites, nextActive);
+	 renderFavoriteLines();
+	 fetchRealTimeBusData(0);
+   }
+
+   function addFavoriteLineFromInput() {
+	 const input = document.getElementById("favoriteLineInput");
+	 if (!input) return;
+	 const value = input.value;
+	 input.value = "";
+	 addFavoriteLine(value);
+   }
+
+   function handleFavoriteInputKeydown(event) {
+	 if (event.key !== "Enter") return;
+	 event.preventDefault();
+	 addFavoriteLineFromInput();
+   }
+
+   function removeFavoriteLine(lineValue) {
+	 const line = normalizeFavoriteLine(lineValue);
+	 const { favoriteLines, activeFavoriteLines } = getSanitizedFavoriteState(appState);
+	 const nextFavorites = favoriteLines.filter(item => item !== line);
+	 const nextActive = activeFavoriteLines.filter(item => item !== line);
+
+	 applyFavoriteState(nextFavorites, nextActive);
+	 renderFavoriteLines();
+	 fetchRealTimeBusData(0);
+   }
+
+   function toggleFavoriteLine(lineValue) {
+	 const line = normalizeFavoriteLine(lineValue);
+	 const { favoriteLines, activeFavoriteLines } = getSanitizedFavoriteState(appState);
+	 const nextActive = activeFavoriteLines.includes(line)
+	     ? activeFavoriteLines.filter(item => item !== line)
+	     : [...activeFavoriteLines, line];
+
+	 applyFavoriteState(favoriteLines, nextActive);
+	 renderFavoriteLines();
+	 fetchRealTimeBusData(0);
+   }
+
+   function isValidCenter(center) {
+	 return Array.isArray(center)
+	     && center.length === 2
+	     && Number.isFinite(center[0])
+	     && Number.isFinite(center[1])
+	     && center[0] >= -90
+	     && center[0] <= 90
+	     && center[1] >= -180
+	     && center[1] <= 180;
+   }
+
+   function getValidZoom(zoom) {
+	 if (!Number.isFinite(zoom)) return DEFAULT_MAP_ZOOM;
+	 return Math.min(MAX_MAP_ZOOM, Math.max(MIN_MAP_ZOOM, zoom));
+   }
+
+   function migrateUiState(rawState) {
+	 if (!rawState || typeof rawState !== "object" || Array.isArray(rawState)) {
+	     return { schemaVersion: UI_STATE_SCHEMA_VERSION };
+	 }
+
+	 const nextState = { ...rawState };
+	 let schemaVersion = Number.isInteger(nextState.schemaVersion) ? nextState.schemaVersion : 1;
+
+	 if (schemaVersion < 2) {
+	     if (Array.isArray(nextState.favoriteLines)) {
+		 nextState.favoriteLines = [...new Set(nextState.favoriteLines.map(normalizeFavoriteLine).filter(Boolean))].slice(0, MAX_FAVORITES);
+	     }
+	     if (Array.isArray(nextState.activeFavoriteLines)) {
+		 nextState.activeFavoriteLines = [...new Set(nextState.activeFavoriteLines.map(normalizeFavoriteLine).filter(Boolean))];
+	     }
+	     if (nextState.mobileControlsExpanded !== undefined && typeof nextState.mobileControlsExpanded !== "boolean") {
+		 delete nextState.mobileControlsExpanded;
+	     }
+	     schemaVersion = 2;
+	 }
+
+	 nextState.schemaVersion = schemaVersion > UI_STATE_SCHEMA_VERSION ? UI_STATE_SCHEMA_VERSION : schemaVersion;
+	 return nextState;
+   }
+
+   function loadSavedState() {
+	 try {
+	     const storageKeys = [UI_STORAGE_KEY, ...LEGACY_UI_STORAGE_KEYS];
+	     for (const key of storageKeys) {
+		 const rawState = localStorage.getItem(key);
+		 if (!rawState) continue;
+		 const parsedState = JSON.parse(rawState);
+		 const migratedState = migrateUiState(parsedState);
+		 const needsRewrite = key !== UI_STORAGE_KEY || migratedState.schemaVersion !== parsedState?.schemaVersion;
+		 if (needsRewrite) {
+		     localStorage.setItem(UI_STORAGE_KEY, JSON.stringify(migratedState));
+		     if (key !== UI_STORAGE_KEY) {
+			 localStorage.removeItem(key);
+		     }
+		 }
+		 return migratedState;
+	     }
+	     return { schemaVersion: UI_STATE_SCHEMA_VERSION };
+	 } catch (error) {
+	     console.warn("Impossible de relire l'état local", error);
+	     return { schemaVersion: UI_STATE_SCHEMA_VERSION };
+	 }
+   }
+
+   function saveState(patch) {
+	 appState = { ...appState, ...patch, schemaVersion: UI_STATE_SCHEMA_VERSION };
+	 try {
+	     localStorage.setItem(UI_STORAGE_KEY, JSON.stringify(appState));
+	 } catch (error) {
+	     console.warn("Impossible d'enregistrer l'état local", error);
+	 }
+   }
+
+   function applySavedUiState() {
+	 const busFilter = document.getElementById("busFilter");
+	 const colorModeSelect = document.getElementById("colorModeSelect");
+	 const filterContainer = document.getElementById("filter-container");
+	 const shouldCollapse = isMobileLayout && appState.mobileControlsExpanded !== true;
+
+	 if (typeof appState.busFilter === "string") {
+	     busFilter.value = appState.busFilter;
+	 }
+	 if (typeof appState.colorMode === "string") {
+	     colorModeSelect.value = appState.colorMode;
+	 }
+	 initializeFavoriteState();
+
+	 filterContainer.classList.toggle("mobile-collapsed", shouldCollapse);
+	 updateMobileToggleLabel();
+   }
+
+   function toggleMobileControls() {
+	 const filterContainer = document.getElementById("filter-container");
+	 const expanded = filterContainer.classList.contains("mobile-collapsed");
+	 filterContainer.classList.toggle("mobile-collapsed", !expanded);
+	 saveState({ mobileControlsExpanded: expanded });
+	 updateMobileToggleLabel();
+   }
+
+   function updateMobileToggleLabel() {
+	 const toggle = document.getElementById("mobile-settings-toggle");
+	 if (!toggle) return;
+	 const expanded = !document.getElementById("filter-container").classList.contains("mobile-collapsed");
+	 toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+	 toggle.textContent = expanded ? "–" : "⚙";
+   }
+
+   function handleFilterInput() {
+	 const filterValue = document.getElementById("busFilter").value;
+	 saveState({ busFilter: filterValue });
+	 fetchRealTimeBusData(0);
+   }
+
+   function populateBaseMapSelect(baseMaps, selectedLabel) {
+	 const baseMapSelect = document.getElementById("baseMapSelect");
+	 baseMapSelect.innerHTML = "";
+	 Object.keys(baseMaps).forEach(label => {
+	     const option = document.createElement("option");
+	     option.value = label;
+	     option.textContent = label;
+	     if (label === selectedLabel) {
+		 option.selected = true;
+	     }
+	     baseMapSelect.appendChild(option);
+	 });
+   }
+
+   function persistMapView() {
+	 if (!map) return;
+	 const center = map.getCenter();
+	 saveState({
+	     center: [Number(center.lat.toFixed(6)), Number(center.lng.toFixed(6))],
+	     zoom: map.getZoom(),
+	     lastSavedAt: Date.now()
+	 });
+   }
+
+   function recenterMapOnUser() {
+	 const button = document.getElementById("recenter-btn");
+	 if (button) {
+	     button.disabled = true;
+	 }
+
+	 if (!navigator.geolocation) {
+	     console.warn("Geolocation API non disponible");
+	     if (button) button.disabled = false;
+	     return;
+	 }
+
+	 navigator.geolocation.getCurrentPosition(
+	     position => {
+		 const { latitude, longitude } = position.coords;
+		 map.flyTo([latitude, longitude], Math.max(map.getZoom(), 15));
+		 if (button) button.disabled = false;
+	     },
+	     error => {
+		 console.warn("Impossible de recentrer la carte", error);
+		 if (button) button.disabled = false;
+	     },
+	     {
+		 enableHighAccuracy: true,
+		 timeout: 10000,
+		 maximumAge: 30000
+	     }
+	 );
+   }
 
    function openStaticSchedule(routeId) {
        let url = '';
@@ -491,9 +1158,9 @@
 	 
 	 <h4>Code source et données</<h4>
 	     <p>Le code-source de ce prototype est disponible sur <a href="https://github.com/rmaree/tecmap">GitHub</a>.
-		 Les données temps-réel proviennent du <a href="https://www.letec.be/View/Open_Data_of_TEC/4296">site open data de la TEC</a>.
+		 Les données temps-réel proviennent du <a href="https://www.letec.be/View/Open_Data_of_TEC/4296">site open data LETEC</a>.
 		 Le serveur est hébergé par le SEGI de l'ULiège.
-		 Ce projet personnel n'est pas un outil officiel de la TEC ni de l'ULiège. </p>
+		 Ce projet personnel n'est pas un outil officiel de LETEC ni de l'ULiège. </p>
 	 `;
 	 
 	 panel.classList.add('open');
@@ -678,6 +1345,7 @@
    // Clear bus filter
    function clearFilter() {
        document.getElementById('busFilter').value = '';
+	 saveState({ busFilter: '' });
        fetchRealTimeBusData(0); // Refresh data to refresh the map after clearing the filter
    }
    
@@ -751,6 +1419,23 @@
      function updateColorMode() {
 	 const select = document.getElementById("colorModeSelect");
 	 currentColorMode = select.value;
+	 saveState({ colorMode: currentColorMode });
+	 fetchRealTimeBusData(0);
+     }
+
+     function updateBaseMap() {
+	 const baseMapLabel = document.getElementById("baseMapSelect").value;
+	 const nextLayer = baseMaps[baseMapLabel];
+	 if (!nextLayer) return;
+
+	 Object.values(baseMaps).forEach(layer => {
+	     if (map.hasLayer(layer)) {
+		 map.removeLayer(layer);
+	     }
+	 });
+	 nextLayer.addTo(map);
+	 saveState({ baseMap: baseMapLabel });
+	 persistMapView();
 	 fetchRealTimeBusData(0);
      }
    
@@ -1159,25 +1844,23 @@
 	   // Get filter values from the input box 
 	   let tooltip_permanent = 0;
 	   const filterLineStops = {};
-	   let filterValues = document.getElementById('busFilter').value.split(" ").map(num => num.trim()); // Convertit en tableau
+	   const manualFilterValues = document.getElementById('busFilter').value.split(" ").map(s => s.trim()).filter(Boolean);
+	   const { activeFavoriteLines } = getSanitizedFavoriteState(appState);
+	   // Combine manual filter and active favorites; manual filter lines with ? get stop filter, favorites are plain line codes
+	   const activeFilterValues = [...new Set([...manualFilterValues, ...activeFavoriteLines])];
+	   const hasActiveFilter = activeFilterValues.length > 0;
 	   // Check the filter string to look for ? to identify specific busstop
-	   if (filterValues.length > 0 && filterValues[0] != ''){
-	       tooltip_permanent = 1;
-	       filterValues.forEach(value => {
+	   if (hasActiveFilter) {
+	       if (manualFilterValues.length > 0) tooltip_permanent = 1;
+	       activeFilterValues.forEach(value => {
 		   const [busLine, busStop] = value.split('?');
-		   filterLineStops[busLine.trim()] = busStop ? busStop.trim() : "";
+		   filterLineStops[busLine.trim().toUpperCase()] = busStop ? busStop.trim() : "";
 	       });
 	   }
 	   
-	   // Check and reinitialize busMarkers 
-	   if (!Array.isArray(busMarkers)) {
-	       busMarkers = [];
-	   }
-	   // Delete old bus markers from map
-	   if (busMarkers) {
-	       busMarkers.forEach(marker => map.removeLayer(marker));
-	       busMarkers = [];
-	   }
+	   // Delete old bus markers from map and reset
+	   Object.values(busMarkers).forEach(marker => map.removeLayer(marker));
+	   busMarkers = {};
 
 	   if (first) { // we wait for horairesData to be loaded on first execution
 	       await waitForHorairesData()
@@ -1196,8 +1879,8 @@
 	       trip.route_short_name = getRouteShortName(trip.routeId) || null;
 	       trip.route_long_name= getRouteLongName(trip.routeId) || null;
 		     
-	       // If the filter is not null, we skip bus lines which are not in the filter
-	       if (filterValues.length > 0 && filterValues[0] != '' && !(trip.route_short_name.toString() in filterLineStops)) return;
+	       // If an active filter exists (manual or favorites), skip non-matching lines
+	       if (hasActiveFilter && !(trip.route_short_name.toString().toUpperCase() in filterLineStops)) return;
 	       
 	       const nextStopName = getStopName(bus.stopId,stopsData);
 	       const startPoint = getStartPoint(bus.trip.tripId);
@@ -1206,9 +1889,9 @@
 	       //Compute delay based on static schedule 
 	       const schedule = horairesData[bus.trip.tripId];
 	       //const delay = schedule ? estimateDelay_deprecated(schedule,bus.currentStopSequence,bus.timestamp) : 0;
-	       const delay = schedule ? estimateDelay(bus.trip.tripId) : 0;
+	       const delay = estimateDelay(bus.trip.tripId);
 	       
-	       const filterStop = filterLineStops[bus.trip.route_short_name];
+	       const filterStop = filterLineStops[bus.trip.route_short_name.toString().toUpperCase()] ?? "";
 	       let filterStopTime = "";
 	       if (filterStop) {
 		   filterStopTime = getStopTimeString(horairesData[bus.trip.tripId],bus.currentStopSequence,delay,filterStop);
@@ -1262,11 +1945,13 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
 
 	       }
 	   });
-	   //update the number of visible bus in current Map view
-	   let bounds = map.getBounds();
-	   let visibleBuses = busMarkers.filter(marker => bounds.contains(marker.getLatLng()));
-	   document.getElementById('busCount').textContent = visibleBuses.length;
-	   
+
+	   const busCountElement = document.getElementById('busCount');
+	   if (busCountElement) {
+	       const bounds = map.getBounds();
+	       const visibleBuses = Object.values(busMarkers).filter(marker => bounds.contains(marker.getLatLng()));
+	       busCountElement.textContent = visibleBuses.length;
+	   }
        } catch (error) {
            console.error("Erreur lors du chargement des données distantes:", error);
        }
@@ -1312,8 +1997,9 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
      };
      let currentColorMode = COLOR_MODES.DELAY; // default coloring mode is based on delay
 
-     const defaultCoords = [50.63, 5.56];
-     const defaultZoom = 12;
+	const defaultCoords = isValidCenter(appState.center) ? appState.center : DEFAULT_MAP_CENTER;
+	const defaultZoom = getValidZoom(appState.zoom);
+	currentColorMode = appState.colorMode || COLOR_MODES.DELAY;
      var osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 	 maxZoom: 19,
 	 attribution: '© <a href="https://www.openstreetmap.org/">OpenStreetMap contributors</a>'
@@ -1335,7 +2021,8 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
      });
 
      // tileLayer from thunderforest can be used using an apikey to be set in config.js file
-     if (TILE_API_KEY) {
+	 let defaultBaseMapLabel;
+	 if (TILE_API_KEY) {
 	 var transportTileLayer = L.tileLayer('https://tile.thunderforest.com/transport/{z}/{x}/{y}.png?apikey='+TILE_API_KEY, {
      	     attribution: '© <a href="https://www.openstreetmap.org/">OpenStreetMap</a>, &copy; <a href="https://www.thunderforest.com/maps/transport/">Thunderforest</a>',
    	     maxZoom: 22
@@ -1344,41 +2031,49 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
 	     attribution: '&copy; <a href="https://www.thunderforest.com/maps/transport/">Thunderforest</a> - <a href="https://www.openstreetmap.org/">OpenStreetMap</a>',
    	     maxZoom: 22});
 	 var defaultLayer = transportTileLayer;
+		 defaultBaseMapLabel = "TransportMap (Thunderforest)";
    }
    else { // we use opnvLayer as default
        var transportTileLayer = opnvLayer;
        var cycleMapTileLayer = opnvLayer;
        var defaultLayer = opnvLayer;
+	   defaultBaseMapLabel = "Transport map (Öpnvkarte)";
    }
+
+   var baseMaps = {
+	   "OpenStreetMap": osmLayer,
+	   "OpenStreetMap.HOT": osmHOTLayer,
+	   "CyclOSM": cyclOSMLayer,
+	   "CyleMap (Thunderforest)": cycleMapTileLayer,
+	   "Transport map (Öpnvkarte)": opnvLayer,
+	   "TransportMap (Thunderforest)": transportTileLayer,
+   };
+
+   const selectedBaseMapLabel = baseMaps[appState.baseMap] ? appState.baseMap : defaultBaseMapLabel;
+   const selectedBaseMapLayer = baseMaps[selectedBaseMapLabel] || defaultLayer;
 
    var map = L.map('map', {
        center: defaultCoords,
        zoom: defaultZoom,
-       layers: defaultLayer
+	   layers: [selectedBaseMapLayer],
+	   zoomControl: !isMobileLayout
    });
 
-   var baseMaps = {
-       "OpenStreetMap": osmLayer,
-       "OpenStreetMap.HOT": osmHOTLayer,
-       "CyclOSM": cyclOSMLayer,
-       "CyleMap (Thunderforest)": cycleMapTileLayer,
-       "Transport map (Öpnvkarte)": opnvLayer,
-       "TransportMap (Thunderforest)": transportTileLayer,
-   };
-   var layerControl = L.control.layers(baseMaps).addTo(map);
+   populateBaseMapSelect(baseMaps, selectedBaseMapLabel);
+   applySavedUiState();
+   saveState({
+	 baseMap: selectedBaseMapLabel,
+	 colorMode: currentColorMode,
+	 center: defaultCoords,
+	 zoom: defaultZoom,
+	 busFilter: document.getElementById("busFilter").value,
+	 favoriteLines: appState.favoriteLines,
+	 activeFavoriteLines: appState.activeFavoriteLines
+   });
+
+   var layerControl = !isMobileLayout ? L.control.layers(baseMaps).addTo(map) : null;
    
    
-   // Add geolocation button
-   lc = L.control.locate({
-       follow: true,          // Follow user position in real-time
-       keepCurrentZoomLevel: true, 
-       icon: "fa-solid fa-location-dot", 
-       strings: {
-	   title: "Voir ma position"
-       },
-   }).addTo(map);
-
-
      let first=1;
 
      //define regions to load static schedule on-the-fly
@@ -1418,6 +2113,7 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
 
      //when panning, check the current location and load region data accordingly
      map.on("moveend", async () => {
+	 persistMapView();
 	 const bounds = map.getBounds();
 	 for (const region in regionsBounds) {
 	     if (bounds.intersects(regionsBounds[region])) {
@@ -1425,6 +2121,21 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
 	     }
 	 }
      });
+
+     map.on("zoomend", persistMapView);
+     map.on("baselayerchange", event => {
+	 if (!event || !event.name) return;
+	 document.getElementById("baseMapSelect").value = event.name;
+	 saveState({ baseMap: event.name });
+	 persistMapView();
+     });
+
+     document.addEventListener("visibilitychange", () => {
+	 if (document.visibilityState === "hidden") {
+	     persistMapView();
+	 }
+     });
+     window.addEventListener("beforeunload", persistMapView);
 
      
      // Load realtime data (3 sources: updates, vehicles, alerts)
