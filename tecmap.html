@@ -589,12 +589,15 @@
 	     content.innerHTML = '<p>Aucune alerte active.</p>';
        } else {
 	   let stopNames = ' ';
+	   let stopLinks = null;
 	   sorted_alerts.forEach(alert => {
 	       //stopNames = alert.stops.map(stopId => getStopName(stopId,stopsData)).join(', ');
-	       const stopLinks = alert.stops.map(stopId => {
-		   const name = getStopName(stopId, stopsData);
-		   return `<span class="stop-link" data-stop-id="${stopId}">${name}</span>`;
-	       }).join(', ');
+	       if (alert.stops && alert.stops.length > 0 && alert.stops[0] != null) {
+		   stopLinks = alert.stops.map(stopId => {
+		       const name = getStopName(stopId, stopsData);
+		       return `<span class="stop-link" data-stop-id="${stopId}">${name}</span>`;
+		   }).join(', ');
+	       }
 	       
 	       const div = document.createElement('div');
 	       div.className = 'alert';
