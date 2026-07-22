@@ -249,12 +249,17 @@
      }
 
      .history-item {
-     padding:8px;
+	 padding:8px;
 	 cursor:pointer;
      }
 
      .history-item:hover {
 	 background:#f0f0f0;
+     }
+
+     .history-icon {
+	 margin-right: 6px;
+	 color: #000000; 
      }
 
 
@@ -381,7 +386,7 @@
 	 searchHistory.forEach(query => {
              const item = document.createElement("div");
              item.className = "history-item";
-             item.textContent = "🚌 " + query;
+	     item.innerHTML = `<i class="fas fa-bus history-icon"></i>${query}`;
              item.onpointerdown = (e) => {
 		 e.preventDefault();
 		 input.value = query;
