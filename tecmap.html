@@ -233,7 +233,29 @@
 	 box-shadow: none;
      }
 
-     
+
+     #searchHistory {
+	 display:none;
+	 position:absolute;
+	 top:100%;
+	 left:0;
+	 right:0;
+	 background:white;
+	 border:1px solid #ccc;
+	 border-radius:4px;
+	 max-height:220px;
+	 overflow-y:auto;
+	 z-index:2000;
+     }
+
+     .history-item {
+     padding:8px;
+	 cursor:pointer;
+     }
+
+     .history-item:hover {
+	 background:#f0f0f0;
+     }
 
 
     </style>
@@ -242,7 +264,11 @@
     
     <div id="filter-container" style="position: absolute; top: 10px; left: 50px; background: white; padding: 5px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 1000;">
 	<div style="display: flex; align-items: center; gap: 3px; margin-bottom: 4px;">
-	    <input type="text" id="busFilter" placeholder="Filtrer par ligne" oninput="fetchRealTimeBusData(0)" style="flex:1;">
+	    <!-- <input type="text" id="busFilter" placeholder="Filtrer par ligne" oninput="fetchRealTimeBusData(0)" style="flex:1;"> -->
+	    <div id="busFilterContainer" style="position:relative; flex:1;">
+		<input type="text" id="busFilter" placeholder="Filtrer par ligne" style="flex:1;">
+		<div id="searchHistory"></div>
+	    </div>
 	    <button onclick="clearFilter()">❌</button>
 	</div>
 	<div style="display: flex; align-items: center; gap: 6px;">
@@ -276,34 +302,134 @@
     <div id="map"></div>
 
     <script>
-   // ---------------------------------------------------------------------------------------------
-   // Utils 
-
-   function openStaticSchedule(routeId) {
-       let url = '';
-       if (!routeId) { //link to all routes
-	   url = "https://busmaps.com/en/feedinfo/belgium/TEC-Transit/tec-transit/routes?type=Bus";
-       }
-       else { // search for specific route in area
-	   url = "https://busmaps.com/en/search?q="+routeId+"&location="+map.getCenter().lat+","+map.getCenter().lng
-       }
-       window.open(url, "_blank");
-   }
-   
-   // Compute the ISO 8601 current week number 
-   function getISOWeekNumber(date = new Date()) {
-       const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-       d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7)); // first week of the year is the week with the first thursday
-       const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-       return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-   }
 
 
-   function addDays(baseDate, days) {
+
+     // ---------------------------------------------------------------------------------------------
+     // Functions to manage history of search line filters, saved in localStorage
+
+     const HISTORY_KEY = "busSearchHistory";
+     const MAX_HISTORY = 10;
+     const TYPING_DELAY = 1500;
+     
+     function getSearchHistory() {
+	 return JSON.parse(localStorage.getItem("busSearchHistory") || "[]");
+     }
+
+     function saveSearchHistory(query) {
+	 query = query.trim();
+	 if (!query)
+             return;
+	 let history = getSearchHistory();
+	 if (history.length > 0 && history[0] === query)
+             return;
+	 // delete duplicate if any
+	 history = history.filter(q => q !== query);
+	 // add at start
+	 history.unshift(query);
+	 // we keep the last MAX_HISTORY ones
+	 history = history.slice(0, MAX_HISTORY);
+	 localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+     }
+
+
+     function updateHistorySuggestions() {
+	 const input = document.getElementById("busFilter");
+	 const div = document.getElementById("searchHistory");
+	 const value = input.value.trim().toLowerCase();
+	 let history = getSearchHistory();
+
+	 if (value !== "") {
+             history = history.filter(q =>
+		 q.toLowerCase().startsWith(value)
+             );
+	 }
+	 if (history.length === 0) {
+             div.style.display = "none";
+             return;
+	 }
+
+	 div.innerHTML = "";
+
+	 history.forEach(query => {
+
+             const item = document.createElement("div");
+             item.className = "history-item";
+             item.textContent = "🚌 " + query;
+             item.onclick = () => {
+		 input.value = query;
+		 //console.log(input.value);
+		 saveSearchHistory(query);
+		 div.style.display = "none";
+		 fetchRealTimeBusData(0);
+             };
+             div.appendChild(item);
+	 });
+
+	 div.style.display = "block";
+     }
+
+
+     function hideHistory() {
+	 document.getElementById("searchHistory").style.display = "none";
+     }
+     
+
+     const input = document.getElementById("busFilter");
+
+     let historyTimer = null;
+
+     input.addEventListener("input", () => {
+
+	 fetchRealTimeBusData(0);
+
+	 updateHistorySuggestions();
+
+	 clearTimeout(historyTimer);
+
+	 historyTimer = setTimeout(() => {
+             saveSearchHistory(input.value);
+	 }, TYPING_DELAY);
+	 
+     });
+
+     input.addEventListener("focus", updateHistorySuggestions);
+
+     input.addEventListener("blur", () => {
+	 setTimeout(hideHistory, 150);
+     });
+
+     
+     
+     
+     // ---------------------------------------------------------------------------------------------
+     // Utils 
+
+     function openStaticSchedule(routeId) {
+	 let url = '';
+	 if (!routeId) { //link to all routes
+	     url = "https://busmaps.com/en/feedinfo/belgium/TEC-Transit/tec-transit/routes?type=Bus";
+	 }
+	 else { // search for specific route in area
+	     url = "https://busmaps.com/en/search?q="+routeId+"&location="+map.getCenter().lat+","+map.getCenter().lng
+	 }
+	 window.open(url, "_blank");
+     }
+     
+     // Compute the ISO 8601 current week number 
+     function getISOWeekNumber(date = new Date()) {
+	 const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+	 d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7)); // first week of the year is the week with the first thursday
+	 const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+	 return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+     }
+
+
+     function addDays(baseDate, days) {
 	 const result = new Date(baseDate);
 	 result.setDate(result.getDate() + days);
 	 return result;
-   }
+     }
      
      function isPublicHoliday(date = new Date()) {
 	 //Check if the day is a legal public holiday in Belgium e.g. 01/05, 21/07, 25/12,
@@ -369,13 +495,14 @@
 	     1,     // christmas, new year 2026
 	     8, 9,  // carnaval 
 	     18, 19,// easter
-	     26,27,28,29,30,31,32,33,34, // summer holidays
+	     28,29,30,31,32,33,34,35, // summer holidays
 	     44,45, // autumn
 	     52,53  // christmas
 	 ];
 	 const today = new Date();
 	 const dayOfWeek = getServiceDay();
 	 const currentWeek = getISOWeekNumber(today);
+	 console.log(currentWeek);
 	 const isHoliday = isPublicHoliday(today);
 	 let suffix = holidayWeeks.includes(currentWeek) ? "_VAC" : "";
 	 let dayType = "";
@@ -418,62 +545,62 @@
      }
 
 
-   function parseDate(dateStr, timeStr = "00:00") {
-       const [day, month, year] = dateStr.split(" ")[0].split("/");
-       return new Date(`${year}-${month}-${day}T${timeStr}`);
-   }
+     function parseDate(dateStr, timeStr = "00:00") {
+	 const [day, month, year] = dateStr.split(" ")[0].split("/");
+	 return new Date(`${year}-${month}-${day}T${timeStr}`);
+     }
 
-   // Sort alerts based on startTime and remove alerts that already happened (e.g. earlier in this day)
-   function sortCleanAlerts(alerts) {
-       const now = new Date();
+     // Sort alerts based on startTime and remove alerts that already happened (e.g. earlier in this day)
+     function sortCleanAlerts(alerts) {
+	 const now = new Date();
 
-       // First we filter old alerts related to cancellations when now is > endtime of a trip
-       const futureAlerts = alerts.filter(alert => {
-	   if (alert.starttime && alert.tripid && horairesData[alert.tripid]) {
-	       const stops = horairesData[alert.tripid];
-	       const lastStop = stops[stops.length - 1];
-	       if (lastStop && lastStop.a) {
-		   const endOfTrip = parseDate(alert.start, lastStop.a);
-		   return endOfTrip >= now; // we keep it if trip not yet theoritically ended
-	       }
-	   }
-	   if (alert.starttime) {
-	       // fallback if no tripId was found in horairesData
-	       const alertDate = parseDate(alert.start, alert.starttime);
-	       return alertDate >= now;
-	   }
-	   // keep other alerts without starttime (stop moves, general info)
-	   return true;
-       });
+	 // First we filter old alerts related to cancellations when now is > endtime of a trip
+	 const futureAlerts = alerts.filter(alert => {
+	     if (alert.starttime && alert.tripid && horairesData[alert.tripid]) {
+		 const stops = horairesData[alert.tripid];
+		 const lastStop = stops[stops.length - 1];
+		 if (lastStop && lastStop.a) {
+		     const endOfTrip = parseDate(alert.start, lastStop.a);
+		     return endOfTrip >= now; // we keep it if trip not yet theoritically ended
+		 }
+	     }
+	     if (alert.starttime) {
+		 // fallback if no tripId was found in horairesData
+		 const alertDate = parseDate(alert.start, alert.starttime);
+		 return alertDate >= now;
+	     }
+	     // keep other alerts without starttime (stop moves, general info)
+	     return true;
+	 });
 
-       // Sorting
-       return futureAlerts.sort((a, b) => {
-	   // Case 1 : both have starttime
-	   if (a.starttime && b.starttime) {
-	       const dateA = parseDate(a.start, a.starttime);
-	       const dateB = parseDate(b.start, b.starttime);
-	       return dateA - dateB;
-	   }
-	   // Case 2 : only one has starttime, it goes first
-	   if (a.starttime && !b.starttime) return -1;
-	   if (!a.starttime && b.starttime) return 1;
+	 // Sorting
+	 return futureAlerts.sort((a, b) => {
+	     // Case 1 : both have starttime
+	     if (a.starttime && b.starttime) {
+		 const dateA = parseDate(a.start, a.starttime);
+		 const dateB = parseDate(b.start, b.starttime);
+		 return dateA - dateB;
+	     }
+	     // Case 2 : only one has starttime, it goes first
+	     if (a.starttime && !b.starttime) return -1;
+	     if (!a.starttime && b.starttime) return 1;
 
-	   // Case 3 : none has starttime -> sort using start date
-	   const dateA = parseDate(a.start);
-	   const dateB = parseDate(b.start);
-	   return dateA - dateB;
-       });
-   }
+	     // Case 3 : none has starttime -> sort using start date
+	     const dateA = parseDate(a.start);
+	     const dateB = parseDate(b.start);
+	     return dateA - dateB;
+	 });
+     }
 
 
-   // Fill the side panel with color legends for both modes
-   function showColorLegendInPanel() {
-       const panel = document.getElementById('side-panel');
-       const content = document.getElementById('side-content');
-       const title = document.getElementById('side-title');
+     // Fill the side panel with color legends for both modes
+     function showColorLegendInPanel() {
+	 const panel = document.getElementById('side-panel');
+	 const content = document.getElementById('side-content');
+	 const title = document.getElementById('side-title');
 
-       content.innerHTML = '';
-       title.textContent = `Informations / Aide `;
+	 content.innerHTML = '';
+	 title.textContent = `Informations / Aide `;
 	 
 	 content.innerHTML = `<h4>Mode Retard/Avance</h4>
 	 <ul style="list-style:none; padding-left:0;">
@@ -504,7 +631,7 @@
 	 `;
 	 
 	 panel.classList.add('open');
-   }
+     }
 
      //function to handle hover on stop link: add marker to map
      function handleStopHover(e) {
@@ -576,68 +703,68 @@
      //Fill the side panel with alert data related to the routeId
      function showAlertsInPanel(routeId) {
 	 const panel = document.getElementById('side-panel');
-       const content = document.getElementById('side-content');
-       const title = document.getElementById('side-title');
-       content.innerHTML = '';
-       title.textContent = `Alertes ligne ${routeId}`;
+	 const content = document.getElementById('side-content');
+	 const title = document.getElementById('side-title');
+	 content.innerHTML = '';
+	 title.textContent = `Alertes ligne ${routeId}`;
 
-       const alerts = alertsByRoute[routeId] || [];
+	 const alerts = alertsByRoute[routeId] || [];
 	 //we sort and clean alerts each time the panel is open
 	 const sorted_alerts = sortCleanAlerts(alerts);
 
 	 if (alerts.length === 0) {
 	     content.innerHTML = '<p>Aucune alerte active.</p>';
-       } else {
-	   let stopNames = ' ';
-	   let stopLinks = null;
-	   sorted_alerts.forEach(alert => {
-	       //stopNames = alert.stops.map(stopId => getStopName(stopId,stopsData)).join(', ');
-	       if (alert.stops && alert.stops.length > 0 && alert.stops[0] != null) {
-		   stopLinks = alert.stops.map(stopId => {
-		       const name = getStopName(stopId, stopsData);
-		       return `<span class="stop-link" data-stop-id="${stopId}">${name}</span>`;
-		   }).join(', ');
-	       }
-	       
-	       const div = document.createElement('div');
-	       div.className = 'alert';
-	       if (stopLinks) {
-		   div.innerHTML = `
-		       <strong>${alert.description}</strong><br>
-		       🕒 Du ${alert.start} au ${alert.end}<br>
-		       🚏 Arrêts concernés : ${stopLinks}</a>
-		   `;
-	       }
-	       else {
-		   div.innerHTML = `
-		       <strong>${alert.description}</strong><br>
-		       🕒 Du ${alert.start} au ${alert.end}<br>
-		   `;  
-	       }
-	       content.appendChild(div);
-	   });
-	   attachStopInteractions();
-       }
+	 } else {
+	     let stopNames = ' ';
+	     let stopLinks = null;
+	     sorted_alerts.forEach(alert => {
+		 //stopNames = alert.stops.map(stopId => getStopName(stopId,stopsData)).join(', ');
+		 if (alert.stops && alert.stops.length > 0 && alert.stops[0] != null) {
+		     stopLinks = alert.stops.map(stopId => {
+			 const name = getStopName(stopId, stopsData);
+			 return `<span class="stop-link" data-stop-id="${stopId}">${name}</span>`;
+		     }).join(', ');
+		 }
+		 
+		 const div = document.createElement('div');
+		 div.className = 'alert';
+		 if (stopLinks) {
+		     div.innerHTML = `
+			 <strong>${alert.description}</strong><br>
+			 🕒 Du ${alert.start} au ${alert.end}<br>
+			 🚏 Arrêts concernés : ${stopLinks}</a>
+		     `;
+		 }
+		 else {
+		     div.innerHTML = `
+			 <strong>${alert.description}</strong><br>
+			 🕒 Du ${alert.start} au ${alert.end}<br>
+		     `;  
+		 }
+		 content.appendChild(div);
+	     });
+	     attachStopInteractions();
+	 }
 	 panel.classList.add('open');
      }
 
 
-   //Fill the side panel with schedule data related to the tripId
-   function showTripScheduleInPanel(routeId,routeShortId,tripId, currentStopSequence, nextStopId, delay, filterStop) {
-       const panel = document.getElementById('side-panel');
-       const content = document.getElementById('side-content');
-       const title = document.getElementById('side-title');
-       content.innerHTML = '';
-       const operator = "TEC"
-       title.textContent = `Horaire de ce bus ligne ${routeShortId}  `; 
+     //Fill the side panel with schedule data related to the tripId
+     function showTripScheduleInPanel(routeId,routeShortId,tripId, currentStopSequence, nextStopId, delay, filterStop) {
+	 const panel = document.getElementById('side-panel');
+	 const content = document.getElementById('side-content');
+	 const title = document.getElementById('side-title');
+	 content.innerHTML = '';
+	 const operator = "TEC"
+	 title.textContent = `Horaire de ce bus ligne ${routeShortId}  `; 
 
-       // Retrieve schedule for this tripId based on theoretical static schedule
-       const schedule = horairesData[tripId];  // horairesData is defined in the loaded .js file
+	 // Retrieve schedule for this tripId based on theoretical static schedule
+	 const schedule = horairesData[tripId];  // horairesData is defined in the loaded .js file
 
-       // Retrieve color based on bus delay to display +delay string
+	 // Retrieve color based on bus delay to display +delay string
 	 const busColor = getBusDelayColor(delay,currentStopSequence);
 
-       // Retrieve delay stats for the routeId line
+	 // Retrieve delay stats for the routeId line
 	 const stats = statsByRoute[routeId];
 	 avg="NA";
 	 color="black";
@@ -647,33 +774,33 @@
 	     color = stats.color; //color attributed to the line given the mean avgdelay
 	     count =  stats.count;
 	 }
-       
-       if (!schedule) {
-	   content.innerHTML = '<p>Aucun horaire trouvé.</p>';
-       }
-       else {
-	   const stringdelay = delay > 0 ? '(+'+delay+')' : '';
-       
-	   let innerHTML = '<br>Horaire estimé de ce bus aux prochains arrêts:<br><br> <ul class="bus-schedule">';
-	   schedule.slice(currentStopSequence-1,schedule.length).forEach(entry => {  // we slice the schedule to only keep next stops in the popup for lisibility
-	       const stopName = getStopName(entry.s,stopsData);
-	       const isNextStop = entry.s === nextStopId;
-	       // entry.a is arrival_time
-	       if (isNextStop || stopName.toLowerCase().includes(filterStop.toLowerCase()))
-		   innerHTML += `<li ${(isNextStop || filterStop) ? 'style="font-weight: bold; "' : ''}>
+	 
+	 if (!schedule) {
+	     content.innerHTML = '<p>Aucun horaire trouvé.</p>';
+	 }
+	 else {
+	     const stringdelay = delay > 0 ? '(+'+delay+')' : '';
+	     
+	     let innerHTML = '<br>Horaire estimé de ce bus aux prochains arrêts:<br><br> <ul class="bus-schedule">';
+	     schedule.slice(currentStopSequence-1,schedule.length).forEach(entry => {  // we slice the schedule to only keep next stops in the popup for lisibility
+		 const stopName = getStopName(entry.s,stopsData);
+		 const isNextStop = entry.s === nextStopId;
+		 // entry.a is arrival_time
+		 if (isNextStop || stopName.toLowerCase().includes(filterStop.toLowerCase()))
+		     innerHTML += `<li ${(isNextStop || filterStop) ? 'style="font-weight: bold; "' : ''}>
            ${entry.a.slice(0, 5)} <span style="color: ${busColor};"> ${printDelay(delay)} </span> - <span class="stop-link" data-stop-id="${entry.s}">${stopName}</span> 
            </li>`;
-	       else
-		   innerHTML += `<li ${isNextStop ? 'style="font-weight: bold; "' : ''}>
+		 else
+		     innerHTML += `<li ${isNextStop ? 'style="font-weight: bold; "' : ''}>
            ${entry.a.slice(0, 5)} - <span class="stop-link" data-stop-id="${entry.s}">${stopName}</span>
          </li>`;
-	   });
-	   innerHTML += "</ul>";
-	   content.innerHTML += innerHTML;
-       }
-       content.innerHTML += `<br>
+	     });
+	     innerHTML += "</ul>";
+	     content.innerHTML += innerHTML;
+	 }
+	 content.innerHTML += `<br>
        <a href="#" onclick="openStaticSchedule('${routeShortId}')">Horaires théoriques de la ligne ${routeShortId}</a>
-       `;
+	 `;
 
 	 // Display stats about delays for this line
 	 //content.innerHTML += `
@@ -684,26 +811,26 @@
 	 attachStopInteractions();
 	 panel.classList.add('open');
      }
-   
-   // Clear bus filter
-   function clearFilter() {
-       document.getElementById('busFilter').value = '';
-       fetchRealTimeBusData(0); // Refresh data to refresh the map after clearing the filter
-   }
-   
-   // Compute minutes sinces bus started (deprecated, not used anymore)
-   function getTimeSinceStart(startTime) {
-       const now = new Date(); // current time
-       const currentDate = now.toISOString().split('T')[0];
-       const fullStartTime = `${currentDate}T${startTime}`;
-       const startDate = new Date(fullStartTime); // Convert startTime into Data object
-       const differenceInMillis = now - startDate; // Difference in milliseconds
-       const differenceInMinutes = Math.floor(differenceInMillis / 60000); // Convert in minutes
-       return differenceInMinutes;
-   }
+     
+     // Clear bus filter
+     function clearFilter() {
+	 document.getElementById('busFilter').value = '';
+	 fetchRealTimeBusData(0); // Refresh data to refresh the map after clearing the filter
+     }
+     
+     // Compute minutes sinces bus started (deprecated, not used anymore)
+     function getTimeSinceStart(startTime) {
+	 const now = new Date(); // current time
+	 const currentDate = now.toISOString().split('T')[0];
+	 const fullStartTime = `${currentDate}T${startTime}`;
+	 const startDate = new Date(fullStartTime); // Convert startTime into Data object
+	 const differenceInMillis = now - startDate; // Difference in milliseconds
+	 const differenceInMinutes = Math.floor(differenceInMillis / 60000); // Convert in minutes
+	 return differenceInMinutes;
+     }
 
 
-   // Get readable stop name based on stopId (identifier in gtfs static)
+     // Get readable stop name based on stopId (identifier in gtfs static)
      function getStopName(stopId, stopsMap) {
 	 return stopsMap[stopId]?.n || "Arrêt inconnu";
      }
@@ -716,39 +843,39 @@
 
 
      // Create a specific vehicle marker icon based on vehicle type and buscolor (based on delay)
-   function makeVehicleIcon(bus, busColor) {
-       const route = bus.trip.route_short_name;
+     function makeVehicleIcon(bus, busColor) {
+	 const route = bus.trip.route_short_name;
 
-       const icons = {
-	   "tram": "fas fa-train-tram",     // Tram
-	   "metro": "fas fa-train-subway",    // Métro
-	   "default": "fas fa-bus"        // Bus normal
-       };
+	 const icons = {
+	     "tram": "fas fa-train-tram",     // Tram
+	     "metro": "fas fa-train-subway",    // Métro
+	     "default": "fas fa-bus"        // Bus normal
+	 };
 
-       // Determine icon based on local knowledge of vehicle type
-       let iconClass = icons.default;
-       if (route === "T1") { //T1 in Liege is the tram
-	   iconClass = icons.tram;
-       } else if (["M1","M2","M3","M4","M5"].includes(route)) {  // in Charleroi
-	   iconClass = icons.metro;
-       }
-       // Use of italic for express buses (E... in Wallonia)
-       const numberStyle = route.startsWith("E") ? "font-style: italic;" : "";
+	 // Determine icon based on local knowledge of vehicle type
+	 let iconClass = icons.default;
+	 if (route === "T1") { //T1 in Liege is the tram
+	     iconClass = icons.tram;
+	 } else if (["M1","M2","M3","M4","M5"].includes(route)) {  // in Charleroi
+	     iconClass = icons.metro;
+	 }
+	 // Use of italic for express buses (E... in Wallonia)
+	 const numberStyle = route.startsWith("E") ? "font-style: italic;" : "";
 
-       return L.divIcon({
-	   html: `
-	       <div class="bus-marker" style="border: 3px solid ${busColor};">
-		   <i class="${iconClass}" style="color: ${busColor};"></i>
-		   <span class="bus-number" style="${numberStyle}">${route}</span>
-	       </div>
-	   `,
-	   className: 'custom-bus-icon',
-	   iconSize: [36, 36],
-	   iconAnchor: [20, 20]
-       });
-   }
+	 return L.divIcon({
+	     html: `
+		 <div class="bus-marker" style="border: 3px solid ${busColor};">
+		     <i class="${iconClass}" style="color: ${busColor};"></i>
+		     <span class="bus-number" style="${numberStyle}">${route}</span>
+		 </div>
+	     `,
+	     className: 'custom-bus-icon',
+	     iconSize: [36, 36],
+	     iconAnchor: [20, 20]
+	 });
+     }
 
-   // Call color function based on coloring mode
+     // Call color function based on coloring mode
      function getBusColor(delay, speed, stopSequence) {
 	 if (currentColorMode === COLOR_MODES.DELAY) {
 	     return getBusDelayColor(delay,stopSequence);
@@ -763,17 +890,17 @@
 	 currentColorMode = select.value;
 	 fetchRealTimeBusData(0);
      }
-   
-   
-   // Outputs a color for vehicle icon based on speed (not used anymore but might be a future option to display speed map rather than delay map)
-   function getBusSpeedColor(speed) {
-       if (typeof speed !== "number" || isNaN(speed)) return "grey";
-       else if (speed < 15) return "black";
-       else if (speed >= 15 && speed <= 90) return "green";
-       else return "limegreen";
-   }
+     
+     
+     // Outputs a color for vehicle icon based on speed (not used anymore but might be a future option to display speed map rather than delay map)
+     function getBusSpeedColor(speed) {
+	 if (typeof speed !== "number" || isNaN(speed)) return "grey";
+	 else if (speed < 15) return "black";
+	 else if (speed >= 15 && speed <= 90) return "green";
+	 else return "limegreen";
+     }
 
-   // Outputs a color for vehicle based on delay
+     // Outputs a color for vehicle based on delay
      function getBusDelayColor(delay,stopSequence) {
 	 if (stopSequence > 1) {
 	     if (delay > 0 && delay < 5) return "orange"; 
@@ -789,59 +916,59 @@
 	 
      }
 
-   // Convert UNIX timestamp UNIX into human-readable time
-   function timestampToTime(timestamp) {
-       const date = new Date(timestamp * 1000); // Convert in milliseconds
-       const hours = date.getHours().toString().padStart(2, '0');
-       const minutes = date.getMinutes().toString().padStart(2, '0');
-       const seconds = date.getSeconds().toString().padStart(2, '0');
-       return `${hours}:${minutes}:${seconds}`;
-   }
+     // Convert UNIX timestamp UNIX into human-readable time
+     function timestampToTime(timestamp) {
+	 const date = new Date(timestamp * 1000); // Convert in milliseconds
+	 const hours = date.getHours().toString().padStart(2, '0');
+	 const minutes = date.getMinutes().toString().padStart(2, '0');
+	 const seconds = date.getSeconds().toString().padStart(2, '0');
+	 return `${hours}:${minutes}:${seconds}`;
+     }
 
-   // Convert readable time into UNIX timestamp
-   function timeToUnixTimestamp(timeStr, referenceDate = new Date()) {
-       const [hours, minutes] = timeStr.split(":").map(Number);  //time is formatted HH:MM
-       // Get reference readable date into timestamp and set specific time
-       const date = new Date(referenceDate);
-       date.setHours(hours, minutes, 0, 0);
-       // Output Unix timestamp Unix in seconds
-       return Math.floor(date.getTime() / 1000);
-   }
+     // Convert readable time into UNIX timestamp
+     function timeToUnixTimestamp(timeStr, referenceDate = new Date()) {
+	 const [hours, minutes] = timeStr.split(":").map(Number);  //time is formatted HH:MM
+	 // Get reference readable date into timestamp and set specific time
+	 const date = new Date(referenceDate);
+	 date.setHours(hours, minutes, 0, 0);
+	 // Output Unix timestamp Unix in seconds
+	 return Math.floor(date.getTime() / 1000);
+     }
 
-   function timestampToDate(timestamp) {
-       //const d = new Date(timestamp * 1000);
-       const d = new Date(timestamp*1000);
-       return d.toLocaleString('fr-BE', {
-	   day: '2-digit', month: '2-digit',
-	   hour: '2-digit', minute: '2-digit',
-	   year: 'numeric'
-       });
-       return d;
-   }
-   
-   // Compute delays based on current timestamp, static schedule, and next stops, estimation that only works for delay (no advance)
-   function estimateDelay_deprecated(schedule,currentStopSequence,timestamp) {
-       // Compare current time with planned time at next stop, delay=difference
-       if (schedule[currentStopSequence-1])
-	   return Math.round((timestamp - timeToUnixTimestamp(schedule[currentStopSequence-1].a))/60);
-   }
+     function timestampToDate(timestamp) {
+	 //const d = new Date(timestamp * 1000);
+	 const d = new Date(timestamp*1000);
+	 return d.toLocaleString('fr-BE', {
+	     day: '2-digit', month: '2-digit',
+	     hour: '2-digit', minute: '2-digit',
+	     year: 'numeric'
+	 });
+	 return d;
+     }
+     
+     // Compute delays based on current timestamp, static schedule, and next stops, estimation that only works for delay (no advance)
+     function estimateDelay_deprecated(schedule,currentStopSequence,timestamp) {
+	 // Compare current time with planned time at next stop, delay=difference
+	 if (schedule[currentStopSequence-1])
+	     return Math.round((timestamp - timeToUnixTimestamp(schedule[currentStopSequence-1].a))/60);
+     }
 
-   //Use GTFS-RT data to get delays
+     //Use GTFS-RT data to get delays
      function estimateDelay(tripId) {
 	 return delayByTrip[tripId] ?? 0;
 	 //return(delayByTrip[tripId]);
      }
 
-   // Human-readable first stop name of a trip
-   function getStartPoint(tripId) {
-       const schedule = horairesData[tripId]; // horairesData loaded with stop ids
-       if (schedule)
-	   return getStopName(schedule[0].s,stopsData)  //s = stopId
-       else return " "
-   }
+     // Human-readable first stop name of a trip
+     function getStartPoint(tripId) {
+	 const schedule = horairesData[tripId]; // horairesData loaded with stop ids
+	 if (schedule)
+	     return getStopName(schedule[0].s,stopsData)  //s = stopId
+	 else return " "
+     }
 
-   // Human-readable, cleaned last stop name (terminus) of a trip
-   function getEndPoint(tripId) {
+     // Human-readable, cleaned last stop name (terminus) of a trip
+     function getEndPoint(tripId) {
 	 const schedule = horairesData[tripId]; // horairesData loaded with stop ids
 	 if (schedule) {
 	     let cleaned = getStopName(schedule[(schedule.length)-1].s,stopsData);
@@ -861,33 +988,33 @@
 	 return strDelay;
      }
 
-   //Returns string with extract sheduled time at precise stop + delay
-   function getStopTimeString(schedule,currentStopSequence,delay,filterStop) {
-       let output = "";
-       if (schedule) {
-	   schedule.slice(currentStopSequence-1,schedule.length).forEach(entry => {  // we slice the schedule to reduce search in remaining stops
-	       const stopName = getStopName(entry.s,stopsData);
-	       if (stopName.toLowerCase().includes(filterStop.toLowerCase())) {
-		   output = `${stopName} ${entry.a.slice(0, 5)} <span style="color: ${getBusDelayColor(delay,currentStopSequence)}; font-weight: bold;">${printDelay(delay)}</span>`;
-	       }
-	   }
-	   )
-       }
-       return output;
-   }
+     //Returns string with extract sheduled time at precise stop + delay
+     function getStopTimeString(schedule,currentStopSequence,delay,filterStop) {
+	 let output = "";
+	 if (schedule) {
+	     schedule.slice(currentStopSequence-1,schedule.length).forEach(entry => {  // we slice the schedule to reduce search in remaining stops
+		 const stopName = getStopName(entry.s,stopsData);
+		 if (stopName.toLowerCase().includes(filterStop.toLowerCase())) {
+		     output = `${stopName} ${entry.a.slice(0, 5)} <span style="color: ${getBusDelayColor(delay,currentStopSequence)}; font-weight: bold;">${printDelay(delay)}</span>`;
+		 }
+	     }
+	     )
+	 }
+	 return output;
+     }
 
-   function getRouteLongName(routeId) {
-       route = routeData[routeId];
-       return route ? route.rln : " "
-   }
-   function getRouteShortName(routeId) {
-       route = routeData[routeId];
-       return route ? route.rsn : " ";
-   }
+     function getRouteLongName(routeId) {
+	 route = routeData[routeId];
+	 return route ? route.rln : " "
+     }
+     function getRouteShortName(routeId) {
+	 route = routeData[routeId];
+	 return route ? route.rsn : " ";
+     }
 
 
 
-    
+     
 
      
 
@@ -897,48 +1024,48 @@
      // Generic function to load GTFS protobuf
      async function loadGTFSProtobuf(url) {
 	 try {
-           const response = await fetch(url);
-           const buffer = await response.arrayBuffer();
-           const root = await protobuf.load("data/gtfs-realtime.proto");  // Charger le .proto
-           const FeedMessage = root.lookupType("transit_realtime.FeedMessage");
-           const message = FeedMessage.decode(new Uint8Array(buffer));
-           //console.log("GTFS Data in load:", FeedMessage.toObject(message));
-           return FeedMessage.toObject(message);
-       } catch (error) {
-           console.error("Erreur lors du chargement du GTFS Protobuf :", error);
-       }
-   }
+             const response = await fetch(url);
+             const buffer = await response.arrayBuffer();
+             const root = await protobuf.load("data/gtfs-realtime.proto");  // Charger le .proto
+             const FeedMessage = root.lookupType("transit_realtime.FeedMessage");
+             const message = FeedMessage.decode(new Uint8Array(buffer));
+             //console.log("GTFS Data in load:", FeedMessage.toObject(message));
+             return FeedMessage.toObject(message);
+	 } catch (error) {
+             console.error("Erreur lors du chargement du GTFS Protobuf :", error);
+	 }
+     }
 
      async function loadGTFSVehicleData() {
 	 if (!JSON_DATA_FORMAT) //protobuf
 	     gtfsVehicleData = await loadGTFSProtobuf(RT_VEHICLE_API_URL);
 	 else { //json
-	    //console.log("Fetching vehicle positions from JSON cache server");
+	     //console.log("Fetching vehicle positions from JSON cache server");
 	     const res = await fetch(RT_VEHICLE_API_URL);
 	     const data = await res.json();
 	     gtfsVehicleData = data || {};
 	 }
-     //console.log("Données Vehicles chargées :", gtfsVehicleData);
+	 //console.log("Données Vehicles chargées :", gtfsVehicleData);
      }
 
-   async function waitForHorairesData(timeout = 20000, interval = 100) {
-       return new Promise((resolve, reject) => {
-           const startTime = Date.now();
+     async function waitForHorairesData(timeout = 20000, interval = 100) {
+	 return new Promise((resolve, reject) => {
+             const startTime = Date.now();
 
-           const check = () => {
-               //if (typeof horairesData !== "undefined") {
-	       if (loadedRegions.size>0) { //first schedule region is loaded
-                   resolve(horairesData);
-               } else if (Date.now() - startTime > timeout) {
-                   reject(new Error("Timeout: horairesData n'a pas été chargé à temps."));
-               } else {
-                   setTimeout(check, interval);
-               }
-           };
+             const check = () => {
+		 //if (typeof horairesData !== "undefined") {
+		 if (loadedRegions.size>0) { //first schedule region is loaded
+                     resolve(horairesData);
+		 } else if (Date.now() - startTime > timeout) {
+                     reject(new Error("Timeout: horairesData n'a pas été chargé à temps."));
+		 } else {
+                     setTimeout(check, interval);
+		 }
+             };
 
-           check();
-       });
-   }
+             check();
+	 });
+     }
 
      // Schedule next fetch of data to delay when dblclick on marker for multiple bus selection
      function scheduleNextFetch(delay = RT_REFRESH_RATE) {
@@ -953,130 +1080,130 @@
      // Function to map protobuf data to object
      function transformVehicleGTFSData(gtfsData) {
 	 return {
-           data: gtfsData.entity.map(entity => ({
-               vehicleId: entity.vehicle?.id || entity.id, // Certains objets semblent avoir vehicle.id, d'autres non
-	       latitude: entity.vehicle.position?.latitude || null,
-	       longitude: entity.vehicle.position?.longitude || null,
-	       speed: entity.vehicle.position?.speed || null,
-	       currentStopSequence: entity.vehicle.currentStopSequence || null,
-	       timestamp: entity.vehicle.timestamp || null,
-	       stopId: entity.vehicle.stopId || null,
-	       trip: entity.vehicle.trip ? {
-		   tripId: entity.vehicle.trip.tripId || null,
-		   startTime: entity.vehicle.trip.startTime || null,
-		   startDate: entity.vehicle.trip.startDate || null,
-		   routeId: entity.vehicle.trip.routeId || null,
-		   route_short_name: getRouteShortName(entity.vehicle.trip.routeId) || null,
-		   route_long_name: getRouteLongName(entity.vehicle.trip.routeId) || null,
-	       } : null,
-	       agency: entity.vehicle.trip?.routeId?.split("-")[0] || null // Déduire l'agence depuis l'ID de la route
-	   }))
-       };
-   }
+             data: gtfsData.entity.map(entity => ({
+		 vehicleId: entity.vehicle?.id || entity.id, // Certains objets semblent avoir vehicle.id, d'autres non
+		 latitude: entity.vehicle.position?.latitude || null,
+		 longitude: entity.vehicle.position?.longitude || null,
+		 speed: entity.vehicle.position?.speed || null,
+		 currentStopSequence: entity.vehicle.currentStopSequence || null,
+		 timestamp: entity.vehicle.timestamp || null,
+		 stopId: entity.vehicle.stopId || null,
+		 trip: entity.vehicle.trip ? {
+		     tripId: entity.vehicle.trip.tripId || null,
+		     startTime: entity.vehicle.trip.startTime || null,
+		     startDate: entity.vehicle.trip.startDate || null,
+		     routeId: entity.vehicle.trip.routeId || null,
+		     route_short_name: getRouteShortName(entity.vehicle.trip.routeId) || null,
+		     route_long_name: getRouteLongName(entity.vehicle.trip.routeId) || null,
+		 } : null,
+		 agency: entity.vehicle.trip?.routeId?.split("-")[0] || null // Déduire l'agence depuis l'ID de la route
+	     }))
+	 };
+     }
 
 
-   async function loadGTFSAlertData() {
-       gtfsAlertData = await loadGTFSProtobuf(RT_ALERT_API_URL);
-       //console.log("Données Alerts chargées :", gtfsAlertData);
-   }
+     async function loadGTFSAlertData() {
+	 gtfsAlertData = await loadGTFSProtobuf(RT_ALERT_API_URL);
+	 //console.log("Données Alerts chargées :", gtfsAlertData);
+     }
 
-   async function fetchRealTimeAlertData() {
-       await loadGTFSAlertData();
-       //console.log(JSON.stringify(gtfsAlertData, null, 2)); // Affichage formaté en JSON
-       let first=1
-       if (first) { // we wait for horairesData to be loaded on first execution because transformAlerts uses horairesData
-	   await waitForHorairesData()
-	   .then(data => console.log("horairesData chargé"))
-	   .catch(error => console.error(error.message));
-       }
-       first=0;
-       transformAlertGTFSData(gtfsAlertData);
-       //console.log(alertsByRoute);
+     async function fetchRealTimeAlertData() {
+	 await loadGTFSAlertData();
+	 //console.log(JSON.stringify(gtfsAlertData, null, 2)); // Affichage formaté en JSON
+	 let first=1
+	 if (first) { // we wait for horairesData to be loaded on first execution because transformAlerts uses horairesData
+	     await waitForHorairesData()
+	     .then(data => console.log("horairesData chargé"))
+	     .catch(error => console.error(error.message));
+	 }
+	 first=0;
+	 transformAlertGTFSData(gtfsAlertData);
+	 //console.log(alertsByRoute);
 	 
-   }
+     }
 
-   // Function to map GTFS-RT alert data into alertsByRoute and alertsByStop objects
-   function transformAlertGTFSData(gtfsData) {
-       const entities = gtfsData.entity;
-       //go through all entities (alerts)
-       entities.forEach(entity => {
-	   const alert = entity.alert;
-	   if (!alert || !Array.isArray(alert.informedEntity)) return;
+     // Function to map GTFS-RT alert data into alertsByRoute and alertsByStop objects
+     function transformAlertGTFSData(gtfsData) {
+	 const entities = gtfsData.entity;
+	 //go through all entities (alerts)
+	 entities.forEach(entity => {
+	     const alert = entity.alert;
+	     if (!alert || !Array.isArray(alert.informedEntity)) return;
 
-	   // French description if available
-	   let description = alert.descriptionText?.translation?.find(t => t.language === 'fr-be')?.text 
+	     // French description if available
+	     let description = alert.descriptionText?.translation?.find(t => t.language === 'fr-be')?.text 
 			    || alert.descriptionText?.translation?.[0]?.text 
 			    || '';
 
-	   // When does the alert applies
-	   let startDate = ' ';
-	   let endDate = ' ';
-	   if (alert.activePeriod) {
-	       startDate = timestampToDate(alert.activePeriod[0].start);
-	       endDate = timestampToDate(alert.activePeriod[0].end);
-	   }
+	     // When does the alert applies
+	     let startDate = ' ';
+	     let endDate = ' ';
+	     if (alert.activePeriod) {
+		 startDate = timestampToDate(alert.activePeriod[0].start);
+		 endDate = timestampToDate(alert.activePeriod[0].end);
+	     }
 
-	   //extract and convert info from informedEntity for precise cancellation information
-	   let additionalInfo = ' ';
-	   let starttime = null;
-	   let tripid=null;
-	   if (alert.informedEntity){
-	       const tripInfo = alert.informedEntity[0].trip;
-	       if (tripInfo && tripInfo.tripId) {
-		   tripid = tripInfo.tripId;
-		   // no AM/PM info in informedEntity startTime so we preferrably use horairesData[][0] startTime
-		   if (horairesData[tripInfo.tripId]) {
-		       starttime=horairesData[tripInfo.tripId][0].a;
-		   }
-		   else { //but we might not have horairesData loaded (e.g. for wednesday when we are tuesday)
-		       starttime=tripInfo.startTime;
-		   }
-		   additionalInfo = "Annulation du bus démarrant de "+getStartPoint(tripInfo.tripId)+" à "+starttime;
-		   description = additionalInfo;
-	       }
-	   }
-	   
-	   const alertInfo = {
-	       id: entity.id,
-	       tripid: tripid,
-	       description,
-	       start: startDate,
-	       end: endDate,
-	       starttime: starttime,
-	       stops: [],
-	       //raw: alert  // raw alert data 
-	   };
+	     //extract and convert info from informedEntity for precise cancellation information
+	     let additionalInfo = ' ';
+	     let starttime = null;
+	     let tripid=null;
+	     if (alert.informedEntity){
+		 const tripInfo = alert.informedEntity[0].trip;
+		 if (tripInfo && tripInfo.tripId) {
+		     tripid = tripInfo.tripId;
+		     // no AM/PM info in informedEntity startTime so we preferrably use horairesData[][0] startTime
+		     if (horairesData[tripInfo.tripId]) {
+			 starttime=horairesData[tripInfo.tripId][0].a;
+		     }
+		     else { //but we might not have horairesData loaded (e.g. for wednesday when we are tuesday)
+			 starttime=tripInfo.startTime;
+		     }
+		     additionalInfo = "Annulation du bus démarrant de "+getStartPoint(tripInfo.tripId)+" à "+starttime;
+		     description = additionalInfo;
+		 }
+	     }
+	     
+	     const alertInfo = {
+		 id: entity.id,
+		 tripid: tripid,
+		 description,
+		 start: startDate,
+		 end: endDate,
+		 starttime: starttime,
+		 stops: [],
+		 //raw: alert  // raw alert data 
+	     };
 
-	   //first loop to add concerned stops in alertInfo array
-	   alert.informedEntity.forEach(info => {
-	       const { stopId } = info;
-	       if (!alertInfo.stops.includes(stopId)) {
-		   alertInfo.stops.push(stopId);
-	       }
-	   });
-	   
-	   //second loop (not optimized) for adding alerts in indexing structures
-	   alert.informedEntity.forEach(info => {
-	       const { routeId, stopId } = info;
+	     //first loop to add concerned stops in alertInfo array
+	     alert.informedEntity.forEach(info => {
+		 const { stopId } = info;
+		 if (!alertInfo.stops.includes(stopId)) {
+		     alertInfo.stops.push(stopId);
+		 }
+	     });
+	     
+	     //second loop (not optimized) for adding alerts in indexing structures
+	     alert.informedEntity.forEach(info => {
+		 const { routeId, stopId } = info;
 
-	       // Indexation par route
-	       if (routeId) {
-		   //console.log(routeId);
-		   if (!alertsByRoute[routeId]) alertsByRoute[routeId] = [];
-		   if (!alertsByRoute[routeId].some(a => a.id === alertInfo.id)) {
-		       alertsByRoute[routeId].push(alertInfo);
-		   }
-	       }
-	       // Indexation par arrêt // not needed anymore ?
-	       if (stopId) {
-		   if (!alertsByStop[stopId]) alertsByStop[stopId] = [];
-		   if (!alertsByStop[stopId].some(a => a.id === alertInfo.id)) {
-		       alertsByStop[stopId].push(alertInfo);
-		   }
-	       }
-	   });
-       });
-   }
+		 // Indexation par route
+		 if (routeId) {
+		     //console.log(routeId);
+		     if (!alertsByRoute[routeId]) alertsByRoute[routeId] = [];
+		     if (!alertsByRoute[routeId].some(a => a.id === alertInfo.id)) {
+			 alertsByRoute[routeId].push(alertInfo);
+		     }
+		 }
+		 // Indexation par arrêt // not needed anymore ?
+		 if (stopId) {
+		     if (!alertsByStop[stopId]) alertsByStop[stopId] = [];
+		     if (!alertsByStop[stopId].some(a => a.id === alertInfo.id)) {
+			 alertsByStop[stopId].push(alertInfo);
+		     }
+		 }
+	     });
+	 });
+     }
 
 
 
@@ -1095,146 +1222,146 @@
      }
 
 
-   async function fetchRealTimeUpdateData() {
+     async function fetchRealTimeUpdateData() {
 	 await loadGTFSUpdateData();
 	 if (!JSON_DATA_FORMAT) transformUpdateGTFSData(gtfsUpdateData,1);
 	 //console.log(statsByRoute);
-       //console.log(delayByTrip);
-   }
-   
-   function transformUpdateGTFSData(gtfsData, computeStats = false) {
-       const entities = gtfsData.entity;
-       statsByRoute = {}; //reinitialize statsByRoute
-       //go through all entities (alerts)
-       entities.forEach(entity => {
-	   const tripUpdate = entity.tripUpdate;
-	   if (!tripUpdate || !tripUpdate.trip || !tripUpdate.vehicle) return;
-	   const tripId = tripUpdate.trip.tripId;
-	   const routeId = tripUpdate.trip.routeId;
-	   let delay = 0;
-	   if (typeof tripUpdate.delay === "number") {
-	       delay = Math.round(tripUpdate.delay/60); // in minutes
-	       delayByTrip[tripId] = delay;
-	   }
+	 //console.log(delayByTrip);
+     }
+     
+     function transformUpdateGTFSData(gtfsData, computeStats = false) {
+	 const entities = gtfsData.entity;
+	 statsByRoute = {}; //reinitialize statsByRoute
+	 //go through all entities (alerts)
+	 entities.forEach(entity => {
+	     const tripUpdate = entity.tripUpdate;
+	     if (!tripUpdate || !tripUpdate.trip || !tripUpdate.vehicle) return;
+	     const tripId = tripUpdate.trip.tripId;
+	     const routeId = tripUpdate.trip.routeId;
+	     let delay = 0;
+	     if (typeof tripUpdate.delay === "number") {
+		 delay = Math.round(tripUpdate.delay/60); // in minutes
+		 delayByTrip[tripId] = delay;
+	     }
 
-	   // if we compute stats
-	   if (computeStats && routeId && delay != null) {
-	       if (!statsByRoute[routeId]) {
-		   statsByRoute[routeId] = {
-		       totalDelay: 0,
-		       count: 0,
-		       lateCount: 0,
-		       advanceCount: 0
-		   };
-	       }
-	       const s = statsByRoute[routeId];
-	       s.totalDelay += delay;
-	       s.count++;
-	       if (delay > 0) s.lateCount++;
-	       if (delay < 0) s.advanceCount++;
-	   }
-       }); //end of entities
-       
-       // if we computestats, compute avgDelay for each route
-       if (computeStats) {
-	   Object.keys(statsByRoute).forEach(routeId => {
-	       const s = statsByRoute[routeId];
-	       s.avgDelay = s.count > 0 ? s.totalDelay / s.count : 0;
-	       s.color = getBusDelayColor(s.avgDelay); // store color for panel display
-	   });
-	   //return { delayByTrip, statsByRoute };
-       }
-       //return { delayByTrip };
-   }
-   
+	     // if we compute stats
+	     if (computeStats && routeId && delay != null) {
+		 if (!statsByRoute[routeId]) {
+		     statsByRoute[routeId] = {
+			 totalDelay: 0,
+			 count: 0,
+			 lateCount: 0,
+			 advanceCount: 0
+		     };
+		 }
+		 const s = statsByRoute[routeId];
+		 s.totalDelay += delay;
+		 s.count++;
+		 if (delay > 0) s.lateCount++;
+		 if (delay < 0) s.advanceCount++;
+	     }
+	 }); //end of entities
+	 
+	 // if we computestats, compute avgDelay for each route
+	 if (computeStats) {
+	     Object.keys(statsByRoute).forEach(routeId => {
+		 const s = statsByRoute[routeId];
+		 s.avgDelay = s.count > 0 ? s.totalDelay / s.count : 0;
+		 s.color = getBusDelayColor(s.avgDelay); // store color for panel display
+	     });
+	     //return { delayByTrip, statsByRoute };
+	 }
+	 //return { delayByTrip };
+     }
+     
 
 
-   
+     
 
-   // ---------------------------------------------------------------------------------------------
-   // Main function to get real-time data and display markers on the map
-   async function fetchRealTimeBusData(update=1) { // by default this function will update gtfs remote data
-       try {
-	   // Uses external API to get real-time json data
-	   if (update) { //when using filter, we don't reload gtfs but apply filter on current data
-	       await loadGTFSVehicleData();
-	       if (gtfsVehicleData != null && !JSON_DATA_FORMAT)
-		   formattedVehicleData = transformVehicleGTFSData(gtfsVehicleData);
-	       //console.log(JSON.stringify(formattedVehicleData, null, 2)); // Affichage formaté en JSON
-	       else //json
-		   formattedVehicleData = gtfsVehicleData;
-	   }
-	   //console.log(formattedVehicleData);
-	   
-	   // Get filter values from the input box 
-	   let tooltip_permanent = 0;
-	   const filterLineStops = {};
-	   let filterValues = document.getElementById('busFilter').value.split(" ").map(num => num.trim()); // Convertit en tableau
-	   // Check the filter string to look for ? to identify specific busstop
-	   if (filterValues.length > 0 && filterValues[0] != ''){
-	       tooltip_permanent = 1;
-	       filterValues.forEach(value => {
-		   const [busLine, busStop] = value.split('?');
-		   filterLineStops[busLine.trim()] = busStop ? busStop.trim() : "";
-	       });
-	   }
-	   
-	   // Check and reinitialize busMarkers 
-	   if (!Array.isArray(busMarkers)) {
-	       busMarkers = [];
-	   }
-	   // Delete old bus markers from map
-	   if (busMarkers) {
-	       busMarkers.forEach(marker => map.removeLayer(marker));
-	       busMarkers = [];
-	   }
+     // ---------------------------------------------------------------------------------------------
+     // Main function to get real-time data and display markers on the map
+     async function fetchRealTimeBusData(update=1) { // by default this function will update gtfs remote data
+	 try {
+	     // Uses external API to get real-time json data
+	     if (update) { //when using filter, we don't reload gtfs but apply filter on current data
+		 await loadGTFSVehicleData();
+		 if (gtfsVehicleData != null && !JSON_DATA_FORMAT)
+		     formattedVehicleData = transformVehicleGTFSData(gtfsVehicleData);
+		 //console.log(JSON.stringify(formattedVehicleData, null, 2)); // Affichage formaté en JSON
+		 else //json
+		     formattedVehicleData = gtfsVehicleData;
+	     }
+	     //console.log(formattedVehicleData);
+	     
+	     // Get filter values from the input box 
+	     let tooltip_permanent = 0;
+	     const filterLineStops = {};
+	     let filterValues = document.getElementById('busFilter').value.split(" ").map(num => num.trim()); // Convertit en tableau
+	     // Check the filter string to look for ? to identify specific busstop
+	     if (filterValues.length > 0 && filterValues[0] != ''){
+		 tooltip_permanent = 1;
+		 filterValues.forEach(value => {
+		     const [busLine, busStop] = value.split('?');
+		     filterLineStops[busLine.trim()] = busStop ? busStop.trim() : "";
+		 });
+	     }
+	     
+	     // Check and reinitialize busMarkers 
+	     if (!Array.isArray(busMarkers)) {
+		 busMarkers = [];
+	     }
+	     // Delete old bus markers from map
+	     if (busMarkers) {
+		 busMarkers.forEach(marker => map.removeLayer(marker));
+		 busMarkers = [];
+	     }
 
-	   if (first) { // we wait for horairesData to be loaded on first execution
-	       await waitForHorairesData()
-	       .then(data => console.log("horairesData chargé"))
-	       .catch(error => console.error(error.message));
-	   }
-	   first=0;
+	     if (first) { // we wait for horairesData to be loaded on first execution
+		 await waitForHorairesData()
+		 .then(data => console.log("horairesData chargé"))
+		 .catch(error => console.error(error.message));
+	     }
+	     first=0;
 
-	   // Loop in real-time formatted vehicle data
-	   //formattedVehicleData.vehicles.forEach(bus => {
-	   formattedVehicleData.data.forEach(bus => {
-	       //const { vehicleId, latitude, longitude, speed, trip, stopId, currentStopSequence, timestamp } = bus;
-	       const { vehicleId, latitude, longitude, speed, trip, stopId, currentStopSequence } = bus;
+	     // Loop in real-time formatted vehicle data
+	     //formattedVehicleData.vehicles.forEach(bus => {
+	     formattedVehicleData.data.forEach(bus => {
+		 //const { vehicleId, latitude, longitude, speed, trip, stopId, currentStopSequence, timestamp } = bus;
+		 const { vehicleId, latitude, longitude, speed, trip, stopId, currentStopSequence } = bus;
 
-	       //late client-side set of sn & ln, TO DO: could be set in server side
-	       trip.route_short_name = getRouteShortName(trip.routeId) || null;
-	       trip.route_long_name= getRouteLongName(trip.routeId) || null;
-		     
-	       // If the filter is not null, we skip bus lines which are not in the filter
-	       if (filterValues.length > 0 && filterValues[0] != '' && !(trip.route_short_name.toString() in filterLineStops)) return;
-	       
-	       const nextStopName = getStopName(bus.stopId,stopsData);
-	       const startPoint = getStartPoint(bus.trip.tripId);
-	       const endPoint = getEndPoint(bus.trip.tripId);
-	       
-	       //Compute delay based on static schedule 
-	       const schedule = horairesData[bus.trip.tripId];
-	       //const delay = schedule ? estimateDelay_deprecated(schedule,bus.currentStopSequence,bus.timestamp) : 0;
-	       const delay = schedule ? estimateDelay(bus.trip.tripId) : 0;
-	       
-	       const filterStop = filterLineStops[bus.trip.route_short_name];
-	       let filterStopTime = "";
-	       if (filterStop) {
-		   filterStopTime = getStopTimeString(horairesData[bus.trip.tripId],bus.currentStopSequence,delay,filterStop);
-		   if (!filterStopTime) return;
-	       }
+		 //late client-side set of sn & ln, TO DO: could be set in server side
+		 trip.route_short_name = getRouteShortName(trip.routeId) || null;
+		 trip.route_long_name= getRouteLongName(trip.routeId) || null;
+		 
+		 // If the filter is not null, we skip bus lines which are not in the filter
+		 if (filterValues.length > 0 && filterValues[0] != '' && !(trip.route_short_name.toString() in filterLineStops)) return;
+		 
+		 const nextStopName = getStopName(bus.stopId,stopsData);
+		 const startPoint = getStartPoint(bus.trip.tripId);
+		 const endPoint = getEndPoint(bus.trip.tripId);
+		 
+		 //Compute delay based on static schedule 
+		 const schedule = horairesData[bus.trip.tripId];
+		 //const delay = schedule ? estimateDelay_deprecated(schedule,bus.currentStopSequence,bus.timestamp) : 0;
+		 const delay = schedule ? estimateDelay(bus.trip.tripId) : 0;
+		 
+		 const filterStop = filterLineStops[bus.trip.route_short_name];
+		 let filterStopTime = "";
+		 if (filterStop) {
+		     filterStopTime = getStopTimeString(horairesData[bus.trip.tripId],bus.currentStopSequence,delay,filterStop);
+		     if (!filterStopTime) return;
+		 }
 
-	       const routeIdForAlerts = bus.trip.routeId.split("-")[0]; //alerts are stored using simplified id
-	       const alerts = alertsByRoute[routeIdForAlerts] || [];
-	       
-	       // Icon and color for bus marker 
-	       //const busColor = getBusDelayColor(delay);
-	       const busColor = getBusColor(delay,bus.speed,bus.currentStopSequence);
-	       const busIcon = makeVehicleIcon(bus, busColor);
+		 const routeIdForAlerts = bus.trip.routeId.split("-")[0]; //alerts are stored using simplified id
+		 const alerts = alertsByRoute[routeIdForAlerts] || [];
+		 
+		 // Icon and color for bus marker 
+		 //const busColor = getBusDelayColor(delay);
+		 const busColor = getBusColor(delay,bus.speed,bus.currentStopSequence);
+		 const busIcon = makeVehicleIcon(bus, busColor);
 
-	       // Content of the popup when user clicks on bus marker
-               const popupContent = `
+		 // Content of the popup when user clicks on bus marker
+		 const popupContent = `
          <b>Ligne ${trip.route_short_name}</b> ${trip.route_long_name} <br>
          De: ${startPoint} <br>
          Vers: <i class="fas fa-arrow-right"></i> ${endPoint} <br>
@@ -1246,41 +1373,41 @@
 	       🕔 Voir l'horaire temps-réel de ce bus
 	       </button></a><br>
 ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts+'\')"> <button id="open-alert-btn-popup">📢 Voir les alertes sur cette ligne ('+alerts.length+')</button></a><br>': ""}
-	       `;
+		 `;
 
-	       // Put the marker on the map
-	       if (busMarkers[vehicleId]) {
-                   // Update of existing marker // not used anymore since we delete busmarkers?
-		   //console.log("update marker bus");
-                   busMarkers[vehicleId].setLatLng([latitude, longitude])
-					.setPopupContent(popupContent)
-					.setIcon(busIcon);
-               } else {
-                   // Add new marker to busMarkers array
-                   busMarkers[vehicleId] = L.marker([latitude, longitude], { icon: busIcon}).addTo(map)
-		                            .bindTooltip(`<i class="fas fa-arrow-right"></i> <b>${endPoint}</b> <br> ${filterStopTime}`, { permanent: tooltip_permanent, direction: "top" })
-					    .bindPopup(popupContent);
+		 // Put the marker on the map
+		 if (busMarkers[vehicleId]) {
+                     // Update of existing marker // not used anymore since we delete busmarkers?
+		     //console.log("update marker bus");
+                     busMarkers[vehicleId].setLatLng([latitude, longitude])
+					  .setPopupContent(popupContent)
+					  .setIcon(busIcon);
+		 } else {
+                     // Add new marker to busMarkers array
+                     busMarkers[vehicleId] = L.marker([latitude, longitude], { icon: busIcon}).addTo(map)
+		                              .bindTooltip(`<i class="fas fa-arrow-right"></i> <b>${endPoint}</b> <br> ${filterStopTime}`, { permanent: tooltip_permanent, direction: "top" })
+					      .bindPopup(popupContent);
 
-		   // Dbl-click on marker puts in into the filter, delay nextFetch allows to dblclick to add other busmarkers in filter
-		   busMarkers[vehicleId].on("dblclick", function () {
-		       const filterInput = document.getElementById("busFilter");
-		       filterInput.value += bus.trip.route_short_name+" ";
-		       filterInput.style.backgroundColor = "#d4f8d4";
-		       setTimeout(() => (filterInput.style.backgroundColor = "white"), 600);
-		       scheduleNextFetch(RT_REFRESH_RATE);
-		   }); 
+		     // Dbl-click on marker puts in into the filter, delay nextFetch allows to dblclick to add other busmarkers in filter
+		     busMarkers[vehicleId].on("dblclick", function () {
+			 const filterInput = document.getElementById("busFilter");
+			 filterInput.value += bus.trip.route_short_name+" ";
+			 filterInput.style.backgroundColor = "#d4f8d4";
+			 setTimeout(() => (filterInput.style.backgroundColor = "white"), 600);
+			 scheduleNextFetch(RT_REFRESH_RATE);
+		     }); 
 
-	       }
-	   });
-	   //update the number of visible bus in current Map view
-	   let bounds = map.getBounds();
-	   let visibleBuses = busMarkers.filter(marker => bounds.contains(marker.getLatLng()));
-	   document.getElementById('busCount').textContent = visibleBuses.length;
-	   
-       } catch (error) {
-           console.error("Erreur lors du chargement des données distantes:", error);
-       }
-   }
+		 }
+	     });
+	     //update the number of visible bus in current Map view
+	     let bounds = map.getBounds();
+	     let visibleBuses = busMarkers.filter(marker => bounds.contains(marker.getLatLng()));
+	     document.getElementById('busCount').textContent = visibleBuses.length;
+	     
+	 } catch (error) {
+             console.error("Erreur lors du chargement des données distantes:", error);
+	 }
+     }
 
 
 
@@ -1354,39 +1481,39 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
 	     attribution: '&copy; <a href="https://www.thunderforest.com/maps/transport/">Thunderforest</a> - <a href="https://www.openstreetmap.org/">OpenStreetMap</a>',
    	     maxZoom: 22});
 	 var defaultLayer = transportTileLayer;
-   }
-   else { // we use opnvLayer as default
-       var transportTileLayer = opnvLayer;
-       var cycleMapTileLayer = opnvLayer;
-       var defaultLayer = opnvLayer;
-   }
+     }
+     else { // we use opnvLayer as default
+	 var transportTileLayer = opnvLayer;
+	 var cycleMapTileLayer = opnvLayer;
+	 var defaultLayer = opnvLayer;
+     }
 
-   var map = L.map('map', {
-       center: defaultCoords,
-       zoom: defaultZoom,
-       layers: defaultLayer
-   });
+     var map = L.map('map', {
+	 center: defaultCoords,
+	 zoom: defaultZoom,
+	 layers: defaultLayer
+     });
 
-   var baseMaps = {
-       "OpenStreetMap": osmLayer,
-       "OpenStreetMap.HOT": osmHOTLayer,
-       "CyclOSM": cyclOSMLayer,
-       "CyleMap (Thunderforest)": cycleMapTileLayer,
-       "Transport map (Öpnvkarte)": opnvLayer,
-       "TransportMap (Thunderforest)": transportTileLayer,
-   };
-   var layerControl = L.control.layers(baseMaps).addTo(map);
-   
-   
-   // Add geolocation button
-   lc = L.control.locate({
-       follow: true,          // Follow user position in real-time
-       keepCurrentZoomLevel: true, 
-       icon: "fa-solid fa-location-dot", 
-       strings: {
-	   title: "Voir ma position"
-       },
-   }).addTo(map);
+     var baseMaps = {
+	 "OpenStreetMap": osmLayer,
+	 "OpenStreetMap.HOT": osmHOTLayer,
+	 "CyclOSM": cyclOSMLayer,
+	 "CyleMap (Thunderforest)": cycleMapTileLayer,
+	 "Transport map (Öpnvkarte)": opnvLayer,
+	 "TransportMap (Thunderforest)": transportTileLayer,
+     };
+     var layerControl = L.control.layers(baseMaps).addTo(map);
+     
+     
+     // Add geolocation button
+     lc = L.control.locate({
+	 follow: true,          // Follow user position in real-time
+	 keepCurrentZoomLevel: true, 
+	 icon: "fa-solid fa-location-dot", 
+	 strings: {
+	     title: "Voir ma position"
+	 },
+     }).addTo(map);
 
 
      let first=1;
@@ -1449,9 +1576,9 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
      fetchRealTimeAlertData(); 
      
      document.getElementById('close-side-btn').addEventListener('click', () => {
-       document.getElementById('side-panel').classList.remove('open');
+	 document.getElementById('side-panel').classList.remove('open');
      });
-   
-  </script>
+     
+    </script>
 </body>
 </html>
