@@ -234,7 +234,7 @@
      }
 
 
-     #searchHistory {
+     #mySearchHistory {
 	 display:none;
 	 position:absolute;
 	 top:100%;
@@ -267,7 +267,7 @@
 	    <!-- <input type="text" id="busFilter" placeholder="Filtrer par ligne" oninput="fetchRealTimeBusData(0)" style="flex:1;"> -->
 	    <div id="busFilterContainer" style="position:relative; flex:1;">
 		<input type="text" id="busFilter" placeholder="Filtrer par ligne" style="flex:1;">
-		<div id="searchHistory"></div>
+		<div id="mySearchHistory"></div>
 	    </div>
 	    <button onclick="clearFilter()">❌</button>
 	</div>
@@ -331,59 +331,60 @@
      // ---------------------------------------------------------------------------------------------
      // Functions to manage history of search line filters, saved in localStorage
 
+
+     
+     
      const HISTORY_KEY = "busSearchHistory";
      const MAX_HISTORY = 10;
      const TYPING_DELAY = 1500;
      
      function getSearchHistory() {
-	 //return JSON.parse(localStorage.getItem("busSearchHistory") || "[]");
-	 return loadPreference("busSearchHistory","[]");
+	 return JSON.parse(localStorage.getItem("busSearchHistory") || "[]");
      }
 
      function saveSearchHistory(query) {
 	 query = query.trim();
 	 if (!query)
              return;
-	 let history = getSearchHistory();
-	 if (history.length > 0 && history[0] === query)
+	 let searchHistory = getSearchHistory();
+	 console.log(searchHistory);
+	 if (searchHistory.length > 0 && history[0] === query)
              return;
 	 // delete duplicate if any
-	 history = history.filter(q => q !== query);
+	 searchHistory = searchHistory.filter(q => q !== query);
 	 // add at start
-	 history.unshift(query);
+	 searchHistory.unshift(query);
 	 // we keep the last MAX_HISTORY ones
-	 history = history.slice(0, MAX_HISTORY);
-	 savePreference(HISTORY_KEY,history)
-	 //localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+	 searchHistory = searchHistory.slice(0, MAX_HISTORY);
+	 localStorage.setItem(HISTORY_KEY, JSON.stringify(searchHistory));
      }
 
 
      function updateHistorySuggestions() {
 	 const input = document.getElementById("busFilter");
-	 const div = document.getElementById("searchHistory");
+	 const div = document.getElementById("mySearchHistory");
 	 const value = input.value.trim().toLowerCase();
-	 let history = getSearchHistory();
+	 let searchHistory = getSearchHistory();
 
 	 if (value !== "") {
-             history = history.filter(q =>
+             searchHistory = searchHistory.filter(q =>
 		 q.toLowerCase().startsWith(value)
              );
 	 }
-	 if (history.length === 0) {
+	 if (searchHistory.length === 0) {
              div.style.display = "none";
              return;
 	 }
 
 	 div.innerHTML = "";
 
-	 history.forEach(query => {
-
+	 searchHistory.forEach(query => {
              const item = document.createElement("div");
              item.className = "history-item";
              item.textContent = "🚌 " + query;
-             item.onclick = () => {
+             item.onpointerdown = (e) => {
+		 e.preventDefault();
 		 input.value = query;
-		 //console.log(input.value);
 		 saveSearchHistory(query);
 		 div.style.display = "none";
 		 fetchRealTimeBusData(0);
@@ -396,35 +397,30 @@
 
 
      function hideHistory() {
-	 document.getElementById("searchHistory").style.display = "none";
+	 document.getElementById("mySearchHistory").style.display = "none";
      }
      
 
-     const input = document.getElementById("busFilter");
-
+     const busInput = document.getElementById("busFilter");
      let historyTimer = null;
 
-     input.addEventListener("input", () => {
-
+     busInput.addEventListener("input", () => {
 	 fetchRealTimeBusData(0);
-
 	 updateHistorySuggestions();
-
 	 clearTimeout(historyTimer);
-
 	 historyTimer = setTimeout(() => {
-             saveSearchHistory(input.value);
+             saveSearchHistory(busInput.value);
 	 }, TYPING_DELAY);
 	 
      });
 
-     input.addEventListener("focus", updateHistorySuggestions);
-
-     input.addEventListener("blur", () => {
+     busInput.addEventListener("focus", updateHistorySuggestions);
+     busInput.addEventListener("blur", () => {
 	 setTimeout(hideHistory, 150);
      });
 
      
+
      
      
      // ---------------------------------------------------------------------------------------------
