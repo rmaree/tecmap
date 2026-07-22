@@ -304,6 +304,29 @@
     <script>
 
 
+     // ---------------------------------------------------------------------------------------------
+     // Functions to load/save local storage
+     // We use localStorage to save/load user preferences
+     // So it works only for one device, there is no sync between user devices (would require user accounts)
+     
+     function savePreference(key, value) {
+	 localStorage.setItem(key, JSON.stringify(value));
+     }
+
+     function loadPreference(key, defaultValue) {
+	 const value = localStorage.getItem(key);
+
+	 if (!value)
+             return defaultValue;
+
+	 try {
+             return JSON.parse(value);
+	 }
+	 catch(e) {
+             return defaultValue;
+	 }
+     }
+     
 
      // ---------------------------------------------------------------------------------------------
      // Functions to manage history of search line filters, saved in localStorage
@@ -313,7 +336,8 @@
      const TYPING_DELAY = 1500;
      
      function getSearchHistory() {
-	 return JSON.parse(localStorage.getItem("busSearchHistory") || "[]");
+	 //return JSON.parse(localStorage.getItem("busSearchHistory") || "[]");
+	 return loadPreference("busSearchHistory","[]");
      }
 
      function saveSearchHistory(query) {
@@ -329,7 +353,8 @@
 	 history.unshift(query);
 	 // we keep the last MAX_HISTORY ones
 	 history = history.slice(0, MAX_HISTORY);
-	 localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+	 savePreference(HISTORY_KEY,history)
+	 //localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
      }
 
 
@@ -1410,7 +1435,44 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
      }
 
 
+     // ---------------------------------------------------------------------------------------------
+     // Utils for map view save
 
+     const MAP_VIEW_KEY = "busMapView";
+
+     function saveMapView() {
+	 const center = map.getCenter();
+	 const view = {
+             lat: center.lat,
+             lng: center.lng,
+             zoom: map.getZoom()
+	 };
+	 localStorage.setItem(MAP_VIEW_KEY, JSON.stringify(view));
+     }
+
+     function loadMapView(defaultCenter, defaultZoom) {
+	 const saved = localStorage.getItem(MAP_VIEW_KEY);
+	 if (!saved)
+             return {
+		 center: defaultCenter, //global variable
+		 zoom: defaultZoom
+             };
+
+	 try {
+             const view = JSON.parse(saved);
+             return {
+		 center: [view.lat, view.lng],
+		 zoom: view.zoom
+             };
+	 }
+	 catch(e) {
+             return {
+		 center: defaultCenter,
+		 zoom: defaultZoom
+             };
+	 }
+     }
+     
      
      // ---------------------------------------------------------------------------------------------
      // Main execution of code
@@ -1449,8 +1511,12 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
      };
      let currentColorMode = COLOR_MODES.DELAY; // default coloring mode is based on delay
 
+     //map position
      const defaultCoords = [50.63, 5.56];
      const defaultZoom = 12;
+     const initialView = loadMapView(defaultCoords, defaultZoom);
+
+     
      var osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 	 maxZoom: 19,
 	 attribution: '© <a href="https://www.openstreetmap.org/">OpenStreetMap contributors</a>'
@@ -1489,11 +1555,11 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
      }
 
      var map = L.map('map', {
-	 center: defaultCoords,
-	 zoom: defaultZoom,
+	 center: initialView.center,
+	 zoom: initialView.zoom,
 	 layers: defaultLayer
      });
-
+     
      var baseMaps = {
 	 "OpenStreetMap": osmLayer,
 	 "OpenStreetMap.HOT": osmHOTLayer,
@@ -1561,7 +1627,9 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
 		 await loadScheduleFile_region(region, currentDayType);
 	     }
 	 }
+	 saveMapView(); //save map position for next visit
      });
+     map.on("zoomend", saveMapView);
 
      
      // Load realtime data (3 sources: updates, vehicles, alerts)
