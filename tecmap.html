@@ -42,7 +42,7 @@
     <script src="leaflet-tilelayer-colorfilter-global.min.js"></script>
     
     <!-- Style FontAwesome pour les icônes -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.0/css/all.min.css">
 
     <!-- Load protobuf library to read real-time data-->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/protobufjs/7.2.0/protobuf.min.js"></script>
@@ -246,11 +246,14 @@
 	 max-height:220px;
 	 overflow-y:auto;
 	 z-index:2000;
+	 -webkit-overflow-scrolling: touch;
+	 touch-action: pan-y;
      }
 
      .history-item {
 	 padding:8px;
 	 cursor:pointer;
+	 touch-action: manipulation;
      }
 
      .history-item:hover {
@@ -261,6 +264,17 @@
 	 margin-right: 6px;
 	 color: #000000; 
      }
+
+     .stop-popup .leaflet-popup-content {
+	 margin: 6px 8px;
+	 line-height: 1.2;
+	 font-size: 13px;
+     }
+
+     .stop-popup .leaflet-popup-content p {
+	 margin: 2px 0;
+     }
+     
 
 
     </style>
@@ -353,7 +367,7 @@
 	 if (!query)
              return;
 	 let searchHistory = getSearchHistory();
-	 console.log(searchHistory);
+	 //console.log(searchHistory);
 	 if (searchHistory.length > 0 && history[0] === query)
              return;
 	 // delete duplicate if any
@@ -389,10 +403,8 @@
              item.className = "history-item";
 	     item.innerHTML = `<i class="fas fa-bus history-icon"></i>${query}`;
              item.onpointerdown = (e) => {
-		 e.preventDefault();
 		 input.value = query;
 		 saveSearchHistory(query);
-		 div.style.display = "none";
 		 fetchRealTimeBusData(0);
              };
              div.appendChild(item);
@@ -655,11 +667,95 @@
 		 Les données temps-réel proviennent du <a href="https://www.letec.be/View/Open_Data_of_TEC/4296">site open data de LETEC</a>.
 		 Le serveur est hébergé par le SEGI de l'ULiège.
 		 Ce projet personnel n'est pas un outil officiel de <a href="https://www.letec.be/">LETEC</a> ni de l'ULiège. </p>
-	 `;
-	 
-	 panel.classList.add('open');
+	     `;
+	     
+	     panel.classList.add('open');
+	     }
+
+
+
+     // Function to select a stop in a list of response, with stopid or distance 
+     function findStop(elements, stopId = null, latlng = null) {
+	 if (!elements || elements.length === 0)
+             return null;
+
+	 // Case 1 : we know stopid
+	 if (stopId) {
+             const matchingElement = elements.find(el => {
+		 if (!el.tags)
+                     return false;
+		 // Search for tag ref:TEC*
+		 for (const [key, value] of Object.entries(el.tags)) {
+                     if (key.startsWith("ref:TEC") && value.trim().toUpperCase() === stopId.trim().toUpperCase())
+			 //more strict: value === stopId
+			 return true;
+		 }
+		 return false;
+             });
+             if (matchingElement)
+		 return matchingElement;
+	 }
+
+	 // Case 2 : unknown stopid, based on distance
+	 if (latlng) {
+             elements.sort((a, b) => {
+		 const da = map.distance(
+                     latlng,
+                     L.latLng(a.lat, a.lon)
+		 );
+		 const db = map.distance(
+                     latlng,
+                     L.latLng(b.lat, b.lon)
+		 );
+		 return da - db; // closest
+             });
+	 }
+	 return elements[0];
      }
 
+     
+     async function fetchStopOSMInfo(latlng, stopId) {
+	 const lat = latlng[0];
+	 const lon = latlng[1];
+	 const query = `
+	     [out:json][timeout:5];
+	     (
+             node["highway"="bus_stop"](around:50,${lat},${lon});
+	     node["public_transport"="platform"](around:50,${lat},${lon});
+	     );
+	     out body tags;
+	 `;
+	 //console.log(query);
+	 const baseURLs = ["https://overpass-api.de/api/interpreter","https://overpass.private.coffee/api/interpreter","https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
+	 for(const url of baseURLs){
+             try{
+		 const response = await fetch(url, {
+		     method: "POST",
+		     body: query,
+		 });
+		 const json = await response.json();
+		 if (!json.elements.length)
+		     return null;
+		 const stop = findStop(json.elements, stopId, latlng);
+		 if (!stop) return null;
+		 return stop;
+	     }
+	     catch(error){
+		 console.error(url, error);
+	     }
+	     
+	 }
+     }
+	 
+     function yesNoIcon(value) {
+	 if (value === "yes")
+	     return "✅";
+	 if (value === "no")
+	     return "❌";
+	 return "❔";
+     }
+
+	     
      //function to handle hover on stop link: add marker to map
      function handleStopHover(e) {
 	 const stopId = e.target.dataset.stopId;
@@ -676,21 +772,94 @@
 	     weight: 2,
 	     fillColor: "#fff",
 	     fillOpacity: 1
-	 }).addTo(map);
+	 }).addTo(map);	 
 
 	 stopPreviewMarker.bindTooltip(getStopName(stopId, stopsData), {
 	     direction: "top",
 	     offset: [0, -8],
 	     className: "compact-tooltip"
 	 }).openTooltip();
-     }
+	 
+     }   
 
-     // function to handle click on stop link -> pan map
+
+
+     // function to create stop popup content
+     function createStopDescription(latlng,stopId = null,stopName = null) {
+
+	 const popup = L.popup({
+	     className: "stop-popup",
+	     maxWidth: 240
+	 })
+			.setLatLng(latlng)
+			.setContent(`<b>${stopName}</b><br><i class="fa-solid fa-calendar"></i> <a href="https://www.letec.be/stops/${stopId}" target="_blank">Infos de passages (LETEC)</a><br>Chargement...`)
+			.openOn(map);
+	 
+	 fetchStopOSMInfo(latlng,stopId).then(osm => {
+	     let html = `<b>${stopName}</b><br><br>`;
+	     const tags = osm.tags;
+	     const routes = [];
+	     if (!tags) {
+		 html += `<b>${stopName}</b><br><br>Aucune information OSM.`;
+	     }
+	     else {
+		 html += `<i class="fa-solid fa-calendar"></i> <a href="https://www.letec.be/stops/${stopId}" target="_blank">Infos de passages (LETEC)</a>`;
+
+		 // Display routes based on OSM tag route_ref:TEC* (applies to TECL, TECX,...)
+		 for (const [key, value] of Object.entries(tags)) {
+		     if (key.startsWith("route_ref:"+NETWORK_PREFIX)) {
+			 routes.push(...value.split(";"));
+		     }
+		 }
+		 const uniqueRoutes = [...new Set(routes)].sort();
+		 if (uniqueRoutes.length) {
+		     html += `<br><i class="fas fa-bus"></i>`;
+		     html += uniqueRoutes.map(routeId => 
+			 `<a href="#" onclick="openStaticSchedule('${routeId}'); return false;">${routeId}</a>`
+		     ).join(", ");
+		     html += `<br>`;
+		     //${uniqueRoutes.join(", ")}<br>`;
+		 }
+
+		 //<a href="#" onclick="openStaticSchedule('${routeShortId}')">
+		 //onclick="openStaticSchedule('${routeShortId}')
+
+		 
+		 html += `<i class="fa-solid fa-person-shelter"></i> ${yesNoIcon(tags.shelter)} `;
+		 html += `<i class="fa-solid fa-chair"></i> ${yesNoIcon(tags.bench)} `;
+		 html += `<i class="fas fa-lightbulb"></i> ${yesNoIcon(tags.lit)} `;
+		 html += `<i class="fas fa-trash"></i> ${yesNoIcon(tags.bin)} `;
+		 html += `<i class="fas fa-blind"></i> ${yesNoIcon(tags.tactile_paving)}<br>`;
+	 
+		 if (tags.panoramax) {
+		     const imageUrl = `https://api.panoramax.xyz/api/pictures/${tags.panoramax}/thumb.jpg`;
+											    html += `
+        <br>
+        <img src="${imageUrl}"
+             style="
+                 width:170px;
+                 max-width:100%;
+                border-radius:4px;
+                box-shadow:0 1px 3px rgba(0,0,0,.25);
+             ">
+											    `;
+		 }
+		 html += `<br><br><a href="https://www.openstreetmap.org/${osm.type}/${osm.id}" target="_blank">Voir/modifier sur OpenStreetMap
+</a>`;
+	     }
+	     popup.setContent(html);
+	 });
+     }
+	 
+
+     
+     // function to handle click on stop link -> pan map + popup with stop description
      function handleStopClick(e) {
 	 const stopId = e.target.dataset.stopId;
+	 const stopName = getStopName(stopId, stopsData);
 	 const latlng = getStopLatLng(stopId, stopsData);
 	 if (!latlng) return;
-
+	 
 	 // move map
 	 map.flyTo(latlng, Math.max(map.getZoom(), 15));
 
@@ -698,19 +867,13 @@
 	     map.removeLayer(stopPreviewMarker);
 	 }
 
-	 stopPreviewMarker = L.circleMarker(latlng, {
-	     radius: 7,
-	     color: "#000",
-	     weight: 2,
-	     fillColor: "#fff",
-	     fillOpacity: 1
-	 }).addTo(map);
-
-	 // close panel ?
-	 //document.getElementById('side-panel').classList.remove('open');
+	 createStopDescription(latlng,stopId,stopName);
+	 //close panel
+	 document.getElementById('side-panel').classList.remove('open');
      }
-     
-     //add events on stop links
+
+
+     //Add events on stop links to display stop locations and information
      function attachStopInteractions() {
 	 document.querySelectorAll('.stop-link').forEach(el => {
 
@@ -874,9 +1037,9 @@
 	 const route = bus.trip.route_short_name;
 
 	 const icons = {
-	     "tram": "fas fa-train-tram",     // Tram
-	     "metro": "fas fa-train-subway",    // Métro
-	     "default": "fas fa-bus"        // Bus normal
+	 "tram": "fas fa-train-tram",     // Tram
+	 "metro": "fas fa-train-subway",    // Métro
+	 "default": "fas fa-bus"        // Bus normal
 	 };
 
 	 // Determine icon based on local knowledge of vehicle type
@@ -1109,22 +1272,22 @@
 	 return {
              data: gtfsData.entity.map(entity => ({
 		 vehicleId: entity.vehicle?.id || entity.id, // Certains objets semblent avoir vehicle.id, d'autres non
-		 latitude: entity.vehicle.position?.latitude || null,
-		 longitude: entity.vehicle.position?.longitude || null,
-		 speed: entity.vehicle.position?.speed || null,
-		 currentStopSequence: entity.vehicle.currentStopSequence || null,
-		 timestamp: entity.vehicle.timestamp || null,
-		 stopId: entity.vehicle.stopId || null,
-		 trip: entity.vehicle.trip ? {
-		     tripId: entity.vehicle.trip.tripId || null,
-		     startTime: entity.vehicle.trip.startTime || null,
-		     startDate: entity.vehicle.trip.startDate || null,
-		     routeId: entity.vehicle.trip.routeId || null,
-		     route_short_name: getRouteShortName(entity.vehicle.trip.routeId) || null,
-		     route_long_name: getRouteLongName(entity.vehicle.trip.routeId) || null,
-		 } : null,
-		 agency: entity.vehicle.trip?.routeId?.split("-")[0] || null // Déduire l'agence depuis l'ID de la route
-	     }))
+	 latitude: entity.vehicle.position?.latitude || null,
+	       longitude: entity.vehicle.position?.longitude || null,
+	       speed: entity.vehicle.position?.speed || null,
+	       currentStopSequence: entity.vehicle.currentStopSequence || null,
+	       timestamp: entity.vehicle.timestamp || null,
+	       stopId: entity.vehicle.stopId || null,
+	       trip: entity.vehicle.trip ? {
+		   tripId: entity.vehicle.trip.tripId || null,
+		   startTime: entity.vehicle.trip.startTime || null,
+		   startDate: entity.vehicle.trip.startDate || null,
+		   routeId: entity.vehicle.trip.routeId || null,
+		   route_short_name: getRouteShortName(entity.vehicle.trip.routeId) || null,
+		   route_long_name: getRouteLongName(entity.vehicle.trip.routeId) || null,
+	       } : null,
+	       agency: entity.vehicle.trip?.routeId?.split("-")[0] || null // Déduire l'agence depuis l'ID de la route
+     }))
 	 };
      }
 
@@ -1586,6 +1749,8 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
 
      let first=1;
 
+     const NETWORK_PREFIX="TEC"; //used to look for routes in OSM
+     
      //define regions to load static schedule on-the-fly
      const regionsBounds = {
 	 // Liège
@@ -1633,6 +1798,9 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
      });
      map.on("zoomend", saveMapView);
 
+     map.on("click", function(e) {
+	 createStopDescription([e.latlng.lat, e.latlng.lng]);
+     });
      
      // Load realtime data (3 sources: updates, vehicles, alerts)
      // Refresh update data every RT_REFRESH_RATE seconds
