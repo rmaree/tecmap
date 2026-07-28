@@ -796,13 +796,19 @@
 			.openOn(map);
 	 
 	 fetchStopOSMInfo(latlng,stopId).then(osm => {
-	     let html = `<b>${stopName}</b><br><br>`;
 	     const tags = osm.tags;
 	     const routes = [];
+	     let html = ``;
 	     if (!tags) {
 		 html += `<b>${stopName}</b><br><br>Aucune information OSM.`;
 	     }
 	     else {
+		 html += `<b>${tags.name}</b><br><br>`;
+		 for (const [key, value] of Object.entries(tags)) {
+		     if (key.startsWith("ref:"+NETWORK_PREFIX)) {
+			 stopId = value;
+		     }
+		 }
 		 html += `<i class="fa-solid fa-calendar"></i> <a href="https://www.letec.be/stops/${stopId}" target="_blank">Infos de passages (LETEC)</a>`;
 
 		 // Display routes based on OSM tag route_ref:TEC* (applies to TECL, TECX,...)
@@ -813,7 +819,7 @@
 		 }
 		 const uniqueRoutes = [...new Set(routes)].sort();
 		 if (uniqueRoutes.length) {
-		     html += `<br><i class="fas fa-bus"></i>`;
+		     html += `<br><i class="fas fa-bus"></i> `;
 		     html += uniqueRoutes.map(routeId => 
 			 `<a href="#" onclick="openStaticSchedule('${routeId}'); return false;">${routeId}</a>`
 		     ).join(", ");
