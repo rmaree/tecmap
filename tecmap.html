@@ -440,7 +440,8 @@
 	 const input = document.getElementById("busFilter");
 	 const keyword = normalizeStopKeyword(stopName);
 	 //console.log(keyword);
-	 input.value += ` ${routeId}?${keyword} `;
+	 //add space before if not empty
+	 input.value += (input.value.trim() !== '' ? ' ' : '') + `${routeId}?${keyword}`;
 	 saveSearchHistory(input.value);
 	 fetchRealTimeBusData(0);
      }
