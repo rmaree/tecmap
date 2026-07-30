@@ -275,23 +275,23 @@ def convert_stops_csv_to_js_with_coords_and_osm(csv_filename,
             # zone
             if "zone:TEC" in tags:
                 stop["z"] = tags["zone:TEC"]
-
-            # équipements (uniquement si "yes")
-            if tags.get("shelter") == "yes":
-                stop["sh"] = 1
-
-            if tags.get("bench") == "yes":
-                stop["be"] = 1
-
-            if tags.get("bin") == "yes":
-                stop["bi"] = 1
-
-            if tags.get("lit") == "yes":
-                stop["li"] = 1
-
-            if tags.get("tactile_paving") == "yes":
-                stop["ta"] = 1
-
+                
+            # équipements
+            if "shelter" in tags:
+                stop["sh"] = 1 if tags["shelter"] == "yes" else 0
+            # bench
+            if "bench" in tags:
+                stop["be"] = 1 if tags["bench"] == "yes" else 0
+            # bin
+            if "bin" in tags:
+                stop["bi"] = 1 if tags["bin"] == "yes" else 0
+            # lighting
+            if "lit" in tags:
+                stop["li"] = 1 if tags["lit"] == "yes" else 0
+            # tactile paving
+            if "tactile_paving" in tags:
+                stop["ta"] = 1 if tags["tactile_paving"] == "yes" else 0
+    
             # photo Panoramax
             if "panoramax" in tags:
                 stop["pa"] = tags["panoramax"]
