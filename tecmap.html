@@ -351,9 +351,6 @@
      // ---------------------------------------------------------------------------------------------
      // Functions to manage history of search line filters, saved in localStorage
 
-
-     
-     
      const HISTORY_KEY = "busSearchHistory";
      const MAX_HISTORY = 10;
      const TYPING_DELAY = 1500;
@@ -413,12 +410,10 @@
 	 div.style.display = "block";
      }
 
-
      function hideHistory() {
 	 document.getElementById("mySearchHistory").style.display = "none";
      }
      
-
      const busInput = document.getElementById("busFilter");
      let historyTimer = null;
 
@@ -438,12 +433,55 @@
      });
 
      
-
-     
-     
      // ---------------------------------------------------------------------------------------------
      // Utils 
 
+     function addInputFilter(routeId,stopName) {
+	 const input = document.getElementById("busFilter");
+	 const keyword = normalizeStopKeyword(stopName);
+	 //console.log(keyword);
+	 input.value += `${routeId}?${keyword} `;
+	 saveSearchHistory(input.value);
+	 fetchRealTimeBusData(0);
+     }
+
+     function normalizeStopKeyword(stopName) {
+	 if (!stopName)
+             return "";
+
+	 // replace brackets by spaces
+	 //stopName = stopName.replace(/\(.*?\)/g, "");
+	 stopName = stopName.replace(/[()]/g, " ");
+	 // delete Quai X
+	 stopName = stopName.replace(/\s*-\s*Quai\s+\S+$/i, "");
+	 // delete (terminus)/Terminus
+	 stopName = stopName.replace(/\s*\(terminus\)\s*$/i, "");
+	 stopName = stopName.replace(/\s+terminus\s*$/i, "");
+	 // delete words
+	 const words = stopName.match(/\p{L}+/gu);
+
+	 if (!words)
+             return "";
+
+	 // Quelques mots peu discriminants à ignorer
+	 const ignored = new Set([
+             "rue", "avenue", "place", "gare", "boulevard",
+             "chaussée", "chemin", "route", "allée",
+             "des", "de", "du", "la", "le", "les",
+             "saint", "sainte"
+	 ]);
+
+	 // On prend le dernier mot significatif
+	 for (let i = words.length - 1; i >= 0; i--) {
+             const w = words[i].toLowerCase();
+             if (!ignored.has(w))
+		 return w;
+	 }
+
+	 // Fallback
+	 return words[words.length - 1].toLowerCase();
+     }
+     
      function openStaticSchedule(routeId) {
 	 let url = '';
 	 if (!routeId) { //link to all routes
@@ -674,7 +712,7 @@
 
 
 
-     // Function to select a stop in a list of response, with stopid or distance 
+     // deprecated function to select a stop in a list of elements from overpass response, with stopid or distance 
      function findStop(elements, stopId = null, latlng = null) {
 	 if (!elements || elements.length === 0)
              return null;
@@ -713,20 +751,19 @@
 	 return elements[0];
      }
 
-     
+     // deprecated, not using overpass query anymore, stops data is fetched offline
      async function fetchStopOSMInfo(latlng, stopId) {
 	 const lat = latlng[0];
 	 const lon = latlng[1];
 	 const query = `
-	     [out:json][timeout:5];
+	     [out:json][timeout:10];
 	     (
              node["highway"="bus_stop"](around:50,${lat},${lon});
 	     node["public_transport"="platform"](around:50,${lat},${lon});
 	     );
 	     out body tags;
 	 `;
-	 //console.log(query);
-	 const baseURLs = ["https://overpass-api.de/api/interpreter","https://overpass.private.coffee/api/interpreter","https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
+	 const baseURLs = ["https://maps.mail.ru/osm/tools/overpass/api/interpreter","https://overpass-api.de/api/interpreter","https://overpass.private.coffee/api/interpreter"];
 	 for(const url of baseURLs){
              try{
 		 const response = await fetch(url, {
@@ -748,9 +785,9 @@
      }
 	 
      function yesNoIcon(value) {
-	 if (value === "yes")
+	 if (value === "yes" || value === 1)
 	     return "✅";
-	 if (value === "no")
+	 if (value === "no" || value === 0 || !value)
 	     return "❌";
 	 return "❔";
      }
@@ -784,17 +821,89 @@
 
 
 
-     // function to create stop popup content
      function createStopDescription(latlng,stopId = null,stopName = null) {
-
 	 const popup = L.popup({
+	     className: "stop-popup",
+	     maxWidth: 240,
+	 })
+			.setLatLng(latlng)
+			.setContent(`<b>${stopName}</b><br><i class="fa-solid fa-calendar"></i> <a href="https://www.letec.be/stops/${stopId}" target="_blank">Infos de passages (LETEC)</a><br>Chargement...`)
+			.openOn(map)
+	 
+
+	 let html = ``;
+	 let routes = [];
+	 let tags = null;
+	 // recupérer les infos soit du stop stopid soit cherche arrêt le plus proche
+	 if (stopId) {
+	     tags = getStopInfoById(stopId,stopsData); 
+	 }
+	 else {
+	     stopId = getStopInfoByCoords(latlng,stopsData);
+	     tags = stopsData[stopId];
+	     console.log(tags);
+	     //we move the popup at the location of the closest stop
+	     popup.setLatLng(([tags.la, tags.lo]))
+	 }
+	 console.log(tags);
+	 
+	 if (!tags) {
+		 html += `<b>${stopName}</b><br><br>Aucune information OSM.`;
+	 }
+	 
+	 html += `<b>${tags.n}</b><br><br>`;
+	 html += `<i class="fa-solid fa-calendar"></i> <a href="https://www.letec.be/stops/${stopId}" target="_blank">Infos de passages (LETEC)</a>`;
+
+	 // Display routes based on OSM tag route_ref:TEC* (applies to TECL, TECX,...)
+	 routes = tags.rr.split(";");
+	 const uniqueRoutes = [...new Set(routes)].sort();
+	 if (uniqueRoutes.length) {
+	     const safeName = tags.n.replace(/'/g, "\\'");
+	     html += `<br><i class="fas fa-bus"></i> `;
+	     html += uniqueRoutes.map(routeId => 
+		 `<a href="#" onclick="addInputFilter('${routeId}','${safeName}'); return false;">${routeId}</a>`
+	     ).join(", ");
+	     html += `<br>`;
+	 }
+
+	 html += `<i class="fa-solid fa-person-shelter"></i> ${yesNoIcon(tags.sh)} `;
+	 html += `<i class="fa-solid fa-chair"></i> ${yesNoIcon(tags.be)} `;
+	 html += `<i class="fas fa-lightbulb"></i> ${yesNoIcon(tags.li)} `;
+	 html += `<i class="fas fa-trash"></i> ${yesNoIcon(tags.bi)} `;
+	 html += `<i class="fas fa-blind"></i> ${yesNoIcon(tags.ta)}<br>`;
+	 
+	 if (tags.pa) {
+	     const imageUrl = `https://api.panoramax.xyz/api/pictures/${tags.pa}/thumb.jpg`;
+	     html += `
+        <br>
+        <img src="${imageUrl}"
+             style="
+                 width:170px;
+                 max-width:100%;
+                border-radius:4px;
+                box-shadow:0 1px 3px rgba(0,0,0,.25);
+             ">
+											    `;
+		 }
+		 html += `<br><br><a href="https://www.openstreetmap.org/${tags.oid}" target="_blank">Voir/modifier sur OpenStreetMap
+</a>`;
+	 
+	 popup.setContent(html);
+
+     }
+
+
+     // function to create stop popup content, deprecated not using online overpass anymore
+     function createStopDescription_overpass(latlng,stopId = null,stopName = null) {
+
+	     const popup = L.popup({
 	     className: "stop-popup",
 	     maxWidth: 240
 	 })
 			.setLatLng(latlng)
 			.setContent(`<b>${stopName}</b><br><i class="fa-solid fa-calendar"></i> <a href="https://www.letec.be/stops/${stopId}" target="_blank">Infos de passages (LETEC)</a><br>Chargement...`)
 			.openOn(map);
-	 
+
 	 fetchStopOSMInfo(latlng,stopId).then(osm => {
 	     const tags = osm.tags;
 	     const routes = [];
@@ -821,16 +930,12 @@
 		 if (uniqueRoutes.length) {
 		     html += `<br><i class="fas fa-bus"></i> `;
 		     html += uniqueRoutes.map(routeId => 
-			 `<a href="#" onclick="openStaticSchedule('${routeId}'); return false;">${routeId}</a>`
+			 //`<a href="#" onclick="openStaticSchedule('${routeId}'); return false;">${routeId}</a>`
+			 `<a href="#" onclick="addInputFilter('${routeId}','${tags.name}'); return false;">${routeId}</a>`
 		     ).join(", ");
 		     html += `<br>`;
-		     //${uniqueRoutes.join(", ")}<br>`;
 		 }
 
-		 //<a href="#" onclick="openStaticSchedule('${routeShortId}')">
-		 //onclick="openStaticSchedule('${routeShortId}')
-
-		 
 		 html += `<i class="fa-solid fa-person-shelter"></i> ${yesNoIcon(tags.shelter)} `;
 		 html += `<i class="fa-solid fa-chair"></i> ${yesNoIcon(tags.bench)} `;
 		 html += `<i class="fas fa-lightbulb"></i> ${yesNoIcon(tags.lit)} `;
@@ -1036,6 +1141,39 @@
 	 const lon = stopsMap[stopId]?.lo;
 	 return (lat !== undefined && lon !== undefined) ? [lat, lon] : null;
      }
+
+     function getStopInfoById(stopId, stopsMap) {
+	 return stopsMap[stopId] || null;
+     }
+
+     function getStopInfoByCoords(latlng,stopsMap) {
+	 let lat=latlng[0];
+	 let lon=latlng[1];
+	 let nearest = null;
+	 let minDist = Infinity;
+
+	 for (const [stopId, stop] of Object.entries(stopsMap)) {
+
+             const d = map.distance(
+		 [lat, lon],
+		 [stop.la, stop.lo]
+             );
+
+             if (d < minDist) {
+		 minDist = d;
+		 nearest = {
+                     id: stopId,
+                     distance: d,
+                     stop: stop
+		 };
+             }
+	 }
+	 //return {id: nearest.id,tags: stopsMap[nearest.id]}
+	 return nearest.id || null;
+	 //return stopsMap[nearest.id] || null;
+	 }
+
+     
 
 
      // Create a specific vehicle marker icon based on vehicle type and buscolor (based on delay)
@@ -1728,7 +1866,7 @@ ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts
      var map = L.map('map', {
 	 center: initialView.center,
 	 zoom: initialView.zoom,
-	 layers: defaultLayer
+	 layers: defaultLayer,
      });
      
      var baseMaps = {

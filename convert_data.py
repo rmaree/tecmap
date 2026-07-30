@@ -25,6 +25,16 @@ import os
 stops_csv_input_filename = "data/stops.txt" # Fichier GTFS csv incluant toutes les routes/trips
 routes_csv_input_filename = "data/routes.txt" #fichier GTFS statique CSV incluant toutes les routes
 stop_times_csv_input_filename = "data/stop_times.txt"  # Fichier GTFS csv incluant tous les stop_times
+stops_osmjson_input_filename = "data/stops_osm.json"  #Fichier json provenant d'Overpass turbo (OpenStreetmap) avec tous les arrêts TEC
+#[out:json][timeout:40];           
+#area["ISO3166-1"="BE"]->.be;
+#(
+#	     node["highway"="bus_stop"]["operator"="TEC"](area.be);
+#	     node["public_transport"="platform"]["operator"="TEC"](area.be);
+#);
+#out body geom;
+
+
 
 #Output Javascript files
 output_dir = "data"
@@ -51,6 +61,15 @@ REGIONS = {
     "H": ["-H_"], #Hainaut
     "NAM": ["-N_"], #Namur
     "LUX": ["-X-"], #Luxembourg
+}
+
+
+NETWORK_CODES = {
+    "TECL": "L",
+    "TECX": "X",
+    "TECN": "N",
+    "TECH": "H",
+    "TECC": "C",
 }
 
 
@@ -178,12 +197,129 @@ def convert_stops_csv_to_js_with_coords(csv_filename, js_filename):
 
     print(f"Conversion static stops done : {js_filename}")
 
+
+
+
+def convert_stops_csv_to_js_with_coords_and_osm(csv_filename,
+                                                js_filename,
+                                                osm_json_filename=None):
+
+    # ------------------------------------------------------------------
+    # 1) Lecture du GTFS
+    # ------------------------------------------------------------------
+
+    stops = {}
+
+    with open(csv_filename, mode="r", encoding="utf-8") as csv_file:
+        reader = csv.DictReader(csv_file)
+
+        for row in reader:
+
+            stop_id = row["stop_id"]
+
+            stops[stop_id] = {
+                "n": clean_stop_name(row["stop_name"]),
+                "la": float(row["stop_lat"]),
+                "lo": float(row["stop_lon"])
+            }
+
+    # ------------------------------------------------------------------
+    # 2) Enrichissement avec OSM (optionnel)
+    # ------------------------------------------------------------------
+
+    if osm_json_filename:
+
+        with open(osm_json_filename, encoding="utf-8") as f:
+            osm = json.load(f)
+
+        for element in osm["elements"]:
+
+            tags = element.get("tags", {})
+
+            # Recherche du ref:TEC*
+            stop_id = None
+
+            for key, value in tags.items():
+                if key.startswith("ref:TEC"):
+                    stop_id = value
+                    break
+
+            if not stop_id:
+                continue
+
+            if stop_id not in stops:
+                continue
+
+            stop = stops[stop_id]
+
+            # id OSM
+            stop["oid"] = element["id"]
+
+            #we assume lat and lon are more precise on OSM due to user displacement editing,
+            #so we erase la,lo from GTFS
+            stop["la"] = element["lat"]
+            stop["lo"] = element["lon"]
+            
+            # réseau
+            if "network" in tags:
+                stop["net"] = NETWORK_CODES.get(tags["network"], tags["network"])
+            #if "network" in tags:
+            #    stop["net"] = tags["network"]
+
+            # lignes
+            for key, value in tags.items():
+                if key.startswith("route_ref:TEC"):
+                    stop["rr"] = value
+                    break
+
+            # zone
+            if "zone:TEC" in tags:
+                stop["z"] = tags["zone:TEC"]
+
+            # équipements (uniquement si "yes")
+            if tags.get("shelter") == "yes":
+                stop["sh"] = 1
+
+            if tags.get("bench") == "yes":
+                stop["be"] = 1
+
+            if tags.get("bin") == "yes":
+                stop["bi"] = 1
+
+            if tags.get("lit") == "yes":
+                stop["li"] = 1
+
+            if tags.get("tactile_paving") == "yes":
+                stop["ta"] = 1
+
+            # photo Panoramax
+            if "panoramax" in tags:
+                stop["pa"] = tags["panoramax"]
+
+    # ------------------------------------------------------------------
+    # 3) Export JS compact
+    # ------------------------------------------------------------------
+
+    json_data = json.dumps(
+        stops,
+        separators=(",", ":"),
+        ensure_ascii=False
+    )
+
+    with open(js_filename, "w", encoding="utf-8") as js_file:
+        js_file.write(f"const stopsData={json_data};")
+
+    print(f"Conversion static stops done : {js_filename}")
+
+
+    
     
 # -------------------------------------------------------------------------------------
 # Execute conversions for static data
 convert_routes_csv_to_js2(routes_csv_input_filename, routes_js_output_filename)
 #convert_stops_csv_to_js(stops_csv_input_filename, stops_js_output_filename)
-convert_stops_csv_to_js_with_coords(stops_csv_input_filename, stops_js_output_filename)
+#convert_stops_csv_to_js_with_coords(stops_csv_input_filename, stops_js_output_filename)
+convert_stops_csv_to_js_with_coords_and_osm(stops_csv_input_filename, stops_js_output_filename,stops_osmjson_input_filename)
 
 exit
 #generate horaires data for each region on SEM, SEM_VAC, DIM, MER, SAM days
