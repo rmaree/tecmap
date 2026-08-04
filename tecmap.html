@@ -842,18 +842,17 @@
 	 else {
 	     stopId = getStopInfoByCoords(latlng,stopsData);
 	     tags = stopsData[stopId];
-	     console.log(tags);
 	     //we move the popup at the location of the closest stop
 	     popup.setLatLng(([tags.la, tags.lo]))
 	 }
-	 console.log(tags);
+	 //console.log(tags);
 	 
 	 if (!tags) {
 		 html += `<b>${stopName}</b><br><br>Aucune information OSM.`;
 	 }
 	 
 	 html += `<b>${tags.n}</b><br><br>`;
-	 html += `<i class="fa-solid fa-calendar"></i> <a href="https://www.letec.be/stops/${stopId}" target="_blank">Infos de passages (LETEC)</a>`;
+	 html += `<i class="fa-solid fa-calendar"></i> <a href="https://www.letec.be/stops/${stopId}" target="_blank">Infos de passages (LETEC)</a><br>`;
 
 	 // Display routes based on OSM tag route_ref:TEC* (applies to TECL, TECX,...)
 	 routes = tags.rr.split(";");
@@ -864,7 +863,7 @@
 	     html += uniqueRoutes.map(routeId => 
 		 `<a href="#" onclick="addInputFilter('${routeId}','${safeName}'); return false;">${routeId}</a>`
 	     ).join(", ");
-	     html += `<br>`;
+	     html += `<br><br>`;
 	 }
 
 	 html += `<i class="fa-solid fa-person-shelter"></i> ${yesNoIcon(tags.sh)} `;
@@ -1664,76 +1663,88 @@
 		 //const { vehicleId, latitude, longitude, speed, trip, stopId, currentStopSequence, timestamp } = bus;
 		 const { vehicleId, latitude, longitude, speed, trip, stopId, currentStopSequence } = bus;
 
-		 //late client-side set of sn & ln, TO DO: could be set in server side
-		 trip.route_short_name = getRouteShortName(trip.routeId) || null;
-		 trip.route_long_name= getRouteLongName(trip.routeId) || null;
+		 if (latitude != null && longitude != null) {
 		 
-		 // If the filter is not null, we skip bus lines which are not in the filter
-		 if (filterValues.length > 0 && filterValues[0] != '' && !(trip.route_short_name.toString() in filterLineStops)) return;
+		     //late client-side set of sn & ln, TO DO: could be set in server side
+		     trip.route_short_name = getRouteShortName(trip.routeId) || null;
+		     trip.route_long_name= getRouteLongName(trip.routeId) || null;
 		 
-		 const nextStopName = getStopName(bus.stopId,stopsData);
-		 const startPoint = getStartPoint(bus.trip.tripId);
-		 const endPoint = getEndPoint(bus.trip.tripId);
+		     // If the filter is not null, we skip bus lines which are not in the filter
+		     if (filterValues.length > 0 && filterValues[0] != '' && !(trip.route_short_name.toString() in filterLineStops)) return;
 		 
-		 //Compute delay based on static schedule 
-		 const schedule = horairesData[bus.trip.tripId];
-		 //const delay = schedule ? estimateDelay_deprecated(schedule,bus.currentStopSequence,bus.timestamp) : 0;
-		 const delay = schedule ? estimateDelay(bus.trip.tripId) : 0;
+		     const nextStopName = getStopName(bus.stopId,stopsData);
+		     const startPoint = getStartPoint(bus.trip.tripId);
+		     const endPoint = getEndPoint(bus.trip.tripId);
 		 
-		 const filterStop = filterLineStops[bus.trip.route_short_name];
-		 let filterStopTime = "";
-		 if (filterStop) {
-		     filterStopTime = getStopTimeString(horairesData[bus.trip.tripId],bus.currentStopSequence,delay,filterStop);
-		     if (!filterStopTime) return;
-		 }
+		     //Compute delay based on static schedule 
+		     const schedule = horairesData[bus.trip.tripId];
+		     //const delay = schedule ? estimateDelay_deprecated(schedule,bus.currentStopSequence,bus.timestamp) : 0;
+		     const delay = schedule ? estimateDelay(bus.trip.tripId) : 0;
+		 
+		     const filterStop = filterLineStops[bus.trip.route_short_name];
+		     let filterStopTime = "";
+		     if (filterStop) {
+			 filterStopTime = getStopTimeString(horairesData[bus.trip.tripId],bus.currentStopSequence,delay,filterStop);
+			 if (!filterStopTime) return;
+		     }
 
-		 const routeIdForAlerts = bus.trip.routeId.split("-")[0]; //alerts are stored using simplified id
-		 const alerts = alertsByRoute[routeIdForAlerts] || [];
+		     const routeIdForAlerts = bus.trip.routeId.split("-")[0]; //alerts are stored using simplified id
+		     const alerts = alertsByRoute[routeIdForAlerts] || [];
 		 
-		 // Icon and color for bus marker 
-		 //const busColor = getBusDelayColor(delay);
-		 const busColor = getBusColor(delay,bus.speed,bus.currentStopSequence);
-		 const busIcon = makeVehicleIcon(bus, busColor);
+		     // Icon and color for bus marker 
+		     //const busColor = getBusDelayColor(delay);
+		     const busColor = getBusColor(delay,bus.speed,bus.currentStopSequence);
+		     const busIcon = makeVehicleIcon(bus, busColor);
 
-		 // Content of the popup when user clicks on bus marker
-		 const popupContent = `
+		     // Content of the popup when user clicks on bus marker
+		     const positionHTML =
+			 (typeof latitude === "number" && typeof longitude === "number")
+			 ? `<i class="fas fa-map-marker-alt"></i> Position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}<br>`
+			 : "";
+		     
+		     const popupContent = `
          <b>Ligne ${trip.route_short_name}</b> ${trip.route_long_name} <br>
          De: ${startPoint} <br>
          Vers: <i class="fas fa-arrow-right"></i> ${endPoint} <br>
          <!-- 🚌 Bus ID: ${vehicleId} <br> //-->
-         <i class="fas fa-map-marker-alt"></i> Position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} <br>
+         <!-- ${positionHTML} //-->
+         <!-- <i class="fas fa-map-marker-alt"></i> Position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} <br> //-->
          <i class="fas fa-tachometer-alt"></i> Vitesse: ${speed ? speed + " km/h" : "N/A"} <br>
          <i class="fas fa-bus"></i> Prochain arrêt: ${nextStopName} <span style="color:${getBusDelayColor(delay,bus.currentStopSequence)}; font-weight: bold;">${printDelay(delay)}</span><br>
          <a href="#" onclick="showTripScheduleInPanel('${trip.routeId}','${trip.route_short_name}','${bus.trip.tripId}', '${bus.currentStopSequence}', '${bus.stopId}', '${delay}', '${filterStop}')"><button style="background:${getBusDelayColor(delay,bus.currentStopSequence)}; color:#fff; border:none; border-radius:4px; z-index: 1001; cursor:pointer; position: left">
 	       🕔 Voir l'horaire temps-réel de ce bus
 	       </button></a><br>
 ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts+'\')"> <button id="open-alert-btn-popup">📢 Voir les alertes sur cette ligne ('+alerts.length+')</button></a><br>': ""}
-		 `;
+		     `;
 
-		 // Put the marker on the map
-		 if (busMarkers[vehicleId]) {
-                     // Update of existing marker // not used anymore since we delete busmarkers?
-		     //console.log("update marker bus");
-                     busMarkers[vehicleId].setLatLng([latitude, longitude])
-					  .setPopupContent(popupContent)
-					  .setIcon(busIcon);
-		 } else {
-                     // Add new marker to busMarkers array
-                     busMarkers[vehicleId] = L.marker([latitude, longitude], { icon: busIcon}).addTo(map)
-		                              .bindTooltip(`<i class="fas fa-arrow-right"></i> <b>${endPoint}</b> <br> ${filterStopTime}`, { permanent: tooltip_permanent, direction: "top" })
-					      .bindPopup(popupContent);
+		     // Put the marker on the map
+		     if (busMarkers[vehicleId]) {
+			 // Update of existing marker // not used anymore since we delete busmarkers?
+			 //console.log("update marker bus");
+			 busMarkers[vehicleId].setLatLng([latitude, longitude])
+					      .setPopupContent(popupContent)
+					      .setIcon(busIcon);
+		     } else {
+			 // Add new marker to busMarkers array
+			 busMarkers[vehicleId] = L.marker([latitude, longitude], { icon: busIcon}).addTo(map)
+						  .bindTooltip(`<i class="fas fa-arrow-right"></i> <b>${endPoint}</b> <br> ${filterStopTime}`, { permanent: tooltip_permanent, direction: "top" })
+						  .bindPopup(popupContent);
 
-		     // Dbl-click on marker puts in into the filter, delay nextFetch allows to dblclick to add other busmarkers in filter
-		     busMarkers[vehicleId].on("dblclick", function () {
-			 const filterInput = document.getElementById("busFilter");
-			 filterInput.value += bus.trip.route_short_name+" ";
-			 filterInput.style.backgroundColor = "#d4f8d4";
-			 setTimeout(() => (filterInput.style.backgroundColor = "white"), 600);
-			 scheduleNextFetch(RT_REFRESH_RATE);
-		     }); 
+			 // Dbl-click on marker puts in into the filter, delay nextFetch allows to dblclick to add other busmarkers in filter
+			 busMarkers[vehicleId].on("dblclick", function () {
+			     const filterInput = document.getElementById("busFilter");
+			     filterInput.value += bus.trip.route_short_name+" ";
+			     filterInput.style.backgroundColor = "#d4f8d4";
+			     setTimeout(() => (filterInput.style.backgroundColor = "white"), 600);
+			     scheduleNextFetch(RT_REFRESH_RATE);
+			 }); 
+			 
+		     }
 
 		 }
 	     });
+
+	     
 	     //update the number of visible bus in current Map view
 	     let bounds = map.getBounds();
 	     let visibleBuses = busMarkers.filter(marker => bounds.contains(marker.getLatLng()));
