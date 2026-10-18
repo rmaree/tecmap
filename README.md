@@ -8,7 +8,7 @@ A simple filter (by bus line numbers) allows to only display the buses of intere
 Alerts (disruptions) can be displayed for each line numbers to know about cancelled trips and stops.
 ![tecmap](tecmap-alerts.jpg?raw=true "Alerts in tecmap")
 
-Various information abouts stops can be displayed.
+Various information abouts stops can be displayed when clicking on the map close to a stop.
 ![tecmap](tecmap-info-bus-stop.jpg?raw=true "Bus stop information in tecmap")
 
 The typical use cases include individuals wanting to know if their buses are on time to plan their trips, e.g. someone at home who doesn't want to wait 10 minutes outside in the cold, or someone who has the possibility of taking several different buses and wants to know which one will arrive first, or someone at their desk who wants to optimize their life and work until the last minute before their bus comes, or someone having a good time with a loved one but not wanting to miss the very last bus ;) or wanting to wait in a shady place rather than at the bus stop in direct sunlight. Another use case is someone who wants to discover new places they can reach with public transport without knowing the existing routes a priori. Please note no automatic planning is provided, you must use your mental calculation skills to construct your route, which in principle consumes less energy than running a routing algorithm on GAFAM servers. ;)
