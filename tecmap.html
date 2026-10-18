@@ -699,11 +699,11 @@
 	 <h4>Utilisation des filtres</h4>
 	 <p>Vous pouvez filtrer les lignes de bus affichées graĉe à leur numéro, en indiquant en haut à gauche par ex. "<b>21 58</b>" (sans les guillemets)
 	     pour afficher tous les bus actuellement en chemin de ces deux lignes. Avec le nom d'un arrêt vous pouvez aussi obtenir
-	     l'heure d'arrivée prévue des bus actuellement en chemin, en ajoutant quelques caractères de son nom par exemple "<b>58?guill B2?guill</b>" pour l'arrêt Guillemins. Les noms des arrêts sont ceux affichés dans le panel "Voir les horaires temps-réel de ce bus".</p>
+	     l'heure d'arrivée prévue des bus actuellement en chemin, en ajoutant quelques caractères de son nom par exemple "<b>58?guill B2?guill</b>" pour l'arrêt Guillemins. Les noms des arrêts sont ceux affichés dans le panel "Voir les horaires temps-réel de ce véhicule".</p>
 	 
 	 <h4>Code source et données</<h4>
 	     <p>Le code-source de ce prototype est disponible sur <a href="https://github.com/rmaree/tecmap">GitHub</a>.
-		 Les données temps-réel proviennent du <a href="https://www.letec.be/View/Open_Data_of_TEC/4296">site open data de LETEC</a>.
+		 Les données temps-réel proviennent du <a href="https://data.belgianmobility.io/">site Open Data Portal for Belgian Public Transport</a>.
 		 Le serveur est hébergé par le SEGI de l'ULiège.
 		 Ce projet personnel n'est pas un outil officiel de <a href="https://www.letec.be/">LETEC</a> ni de l'ULiège. </p>
 	 `;
@@ -827,15 +827,15 @@
 	 }
      }
 
-      function createStopDescription(latlng,stopId = null,stopName = null) {
+     function createStopDescription(latlng,stopId = null,stopName = null) {
 	 let cleanStopId = getCleanStopId(stopId);
 	 const popup = L.popup({
 	     className: "stop-popup",
 	     maxWidth: 240,
 	 })
-			    .setLatLng(latlng)
-			    .setContent(`<b>${stopName}</b><br><i class="fa-solid fa-calendar"></i> <a href="https://www.letec.be/stops/${cleanStopId}" target="_blank">Infos de passages (LETEC)</a><br>Chargement...`)
-			    .openOn(map)
+			.setLatLng(latlng)
+			.setContent(`<b>${stopName}</b><br><i class="fa-solid fa-calendar"></i> <a href="https://www.letec.be/stops/${cleanStopId}" target="_blank">Infos de passages (LETEC)</a><br>Chargement...`)
+			.openOn(map)
 	 
 
 	 let html = ``;
@@ -1070,7 +1070,7 @@
 	 const title = document.getElementById('side-title');
 	 content.innerHTML = '';
 	 const operator = "TEC"
-	 title.textContent = `Horaire de ce bus ligne ${routeShortId}  `; 
+	 title.textContent = `Horaire de ce véhicule ligne ${routeShortId}  `; 
 
 	 // Retrieve schedule for this tripId based on theoretical static schedule
 	 const schedule = horairesData[tripId];  // horairesData is defined in the loaded .js file
@@ -1096,7 +1096,7 @@
 	 else {
 	     const stringdelay = delay > 0 ? '(+'+delay+')' : '';
 	     
-	     let innerHTML = '<br>Horaire estimé de ce bus aux prochains arrêts:<br><br> <ul class="bus-schedule">';
+	     let innerHTML = '<br>Horaire estimé de ce véhicule aux prochains arrêts:<br><br> <ul class="bus-schedule">';
 	     schedule.slice(currentStopSequence-1,schedule.length).forEach(entry => {  // we slice the schedule to only keep next stops in the popup for lisibility
 		 const stopName = getStopName(entry.s,stopsData);
 		 const isNextStop = entry.s === nextStopId;
@@ -1721,7 +1721,7 @@
          <i class="fas fa-tachometer-alt"></i> Vitesse: ${speed ? speed + " km/h" : "N/A"} <br>
          <i class="fas fa-bus"></i> Prochain arrêt: ${nextStopName} <span style="color:${getBusDelayColor(delay,bus.currentStopSequence)}; font-weight: bold;">${printDelay(delay)}</span><br>
          <a href="#" onclick="showTripScheduleInPanel('${trip.routeId}','${trip.route_short_name}','${bus.trip.tripId}', '${bus.currentStopSequence}', '${bus.stopId}', '${delay}', '${filterStop}')"><button style="background:${getBusDelayColor(delay,bus.currentStopSequence)}; color:#fff; border:none; border-radius:4px; z-index: 1001; cursor:pointer; position: left">
-	       🕔 Voir l'horaire temps-réel de ce bus
+	       🕔 Voir l'horaire temps-réel de ce véhicule
 	       </button></a><br>
 ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+bus.trip.routeId+'\')"> <button id="open-alert-btn-popup">📢 Voir les alertes sur cette ligne ('+alerts.length+')</button></a><br>': ""}
 		     `;
