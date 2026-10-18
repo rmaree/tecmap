@@ -301,7 +301,7 @@
 		<a href="#" onclick="showColorLegendInPanel()"><i class="fa-solid fa-question"></i></a>
 	    </span>
 	</div>
-	<p style="margin: 4px 0 0;">Bus visibles : <span id="busCount">0</span></p>
+	<p style="margin: 4px 0 0;">Bus visibles : <span id="busCount">-</span></p>
     </div>
 
   
@@ -871,6 +871,12 @@
 	 html += `<i class="fas fa-lightbulb"></i> ${yesNoIcon(tags.li)} `;
 	 html += `<i class="fas fa-trash"></i> ${yesNoIcon(tags.bi)} `;
 	 html += `<i class="fas fa-blind"></i> ${yesNoIcon(tags.ta)}<br>`;
+
+
+	 const alerts = alertsByStop[stopId] || [];
+	 if (alerts.length>0) {
+	     html += '<br><a href="#" onclick="showAlertsInPanel(\''+stopId+'\')"> <button id="open-alert-btn-popup">📢 Voir les alertes pour cet arrêt ('+alerts.length+')</button></a><br>';
+	 }
 	 
 	 if (tags.pa) {
 	     const imageUrl = `https://api.panoramax.xyz/api/pictures/${tags.pa}/thumb.jpg`;
@@ -1002,14 +1008,14 @@
 
      
      //Fill the side panel with alert data related to the routeId
-     function showAlertsInPanel(routeId) {
+     function showAlertsInPanel(id) {
 	 const panel = document.getElementById('side-panel');
 	 const content = document.getElementById('side-content');
 	 const title = document.getElementById('side-title');
 	 content.innerHTML = '';
-	 title.textContent = `Alertes ligne ${routeId}`;
+	 title.textContent = `Alertes ${id}`;
 
-	 const alerts = alertsByRoute[routeId] || [];
+	 const alerts = alertsByRoute[id] || alertsByStop[id] || [];
 	 //we sort and clean alerts each time the panel is open
 	 const sorted_alerts = sortCleanAlerts(alerts);
 
@@ -1375,12 +1381,12 @@
 	 if (!JSON_DATA_FORMAT) //protobuf
 	     gtfsVehicleData = await loadGTFSProtobuf(RT_VEHICLE_API_URL);
 	 else { //json
-	     console.log("Fetching vehicle positions from JSON cache server");
+	     //console.log("Fetching vehicle positions from JSON cache server");
 	     const res = await fetch(RT_VEHICLE_API_URL);
 	     const data = await res.json();
 	     gtfsVehicleData = data || {};
 	 }
-	 console.log("Données Vehicles chargées :", gtfsVehicleData);
+	 //console.log("Données Vehicles chargées :", gtfsVehicleData);
      }
 
      async function waitForHorairesData(timeout = 20000, interval = 100) {
@@ -1453,8 +1459,8 @@
 	 }
 	 first=0;
 	 transformAlertGTFSData(gtfsAlertData);
-	 console.log(alertsByRoute);
-	 console.log(alertsByStop);
+	 //console.log(alertsByRoute);
+	 //console.log(alertsByStop);
 	 
      }
 
@@ -1642,15 +1648,12 @@
 		 });
 	     }
 	     
-	     // Check and reinitialize busMarkers 
-	     if (!Array.isArray(busMarkers)) {
-		 busMarkers = [];
-	     }
-	     // Delete old bus markers from map
-	     if (busMarkers) {
-		 busMarkers.forEach(marker => map.removeLayer(marker));
-		 busMarkers = [];
-	     }
+	     // Delete previous bus markers from map
+	     Object.values(busMarkers).forEach(marker => {
+		 map.removeLayer(marker);
+	     });
+	     busMarkers = {};
+	     
 
 	     if (first) { // we wait for horairesData to be loaded on first execution
 		 await waitForHorairesData()
@@ -1660,9 +1663,7 @@
 	     first=0;
 
 	     // Loop in real-time formatted vehicle data
-	     //formattedVehicleData.vehicles.forEach(bus => {
 	     formattedVehicleData.data.forEach(bus => {
-		 //const { vehicleId, latitude, longitude, speed, trip, stopId, currentStopSequence, timestamp } = bus;
 		 const { vehicleId, latitude, longitude, speed, trip, stopId, currentStopSequence } = bus;
 
 		 if (latitude != null && longitude != null) {
@@ -1718,37 +1719,30 @@
 ${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+bus.trip.routeId+'\')"> <button id="open-alert-btn-popup">📢 Voir les alertes sur cette ligne ('+alerts.length+')</button></a><br>': ""}
 		     `;
 
-		     // Put the marker on the map
-		     if (busMarkers[vehicleId]) {
-			 // Update of existing marker // not used anymore since we delete busmarkers?
-			 //console.log("update marker bus");
-			 busMarkers[vehicleId].setLatLng([latitude, longitude])
-					      .setPopupContent(popupContent)
-					      .setIcon(busIcon);
-		     } else {
-			 // Add new marker to busMarkers array
-			 busMarkers[vehicleId] = L.marker([latitude, longitude], { icon: busIcon}).addTo(map)
-						  .bindTooltip(`<i class="fas fa-arrow-right"></i> <b>${endPoint}</b> <br> ${filterStopTime}`, { permanent: tooltip_permanent, direction: "top" })
-						  .bindPopup(popupContent);
+		     // Add this bus marker on the map
+		     //console.log("adding new marker");
+		     busMarkers[vehicleId] = L.marker([latitude, longitude], { icon: busIcon}).addTo(map)
+					      .bindTooltip(`<i class="fas fa-arrow-right"></i> <b>${endPoint}</b> <br> ${filterStopTime}`, { permanent: tooltip_permanent, direction: "top" })
+					      .bindPopup(popupContent);
 
-			 // Dbl-click on marker puts in into the filter, delay nextFetch allows to dblclick to add other busmarkers in filter
-			 busMarkers[vehicleId].on("dblclick", function () {
-			     const filterInput = document.getElementById("busFilter");
-			     filterInput.value += bus.trip.route_short_name+" ";
-			     filterInput.style.backgroundColor = "#d4f8d4";
-			     setTimeout(() => (filterInput.style.backgroundColor = "white"), 600);
-			     scheduleNextFetch(RT_REFRESH_RATE);
-			 }); 
-			 
-		     }
-
+		     // Dbl-click on marker puts in into the filter, delay nextFetch allows to dblclick to add other busmarkers in filter
+		     busMarkers[vehicleId].on("dblclick", function () {
+			 const filterInput = document.getElementById("busFilter");
+			 filterInput.value += bus.trip.route_short_name+" ";
+			 filterInput.style.backgroundColor = "#d4f8d4";
+			 setTimeout(() => (filterInput.style.backgroundColor = "white"), 600);
+			 scheduleNextFetch(RT_REFRESH_RATE);
+		     }); 
+		     
 		 }
 	     });
 
 	     
 	     //update the number of visible bus in current Map view
 	     let bounds = map.getBounds();
-	     let visibleBuses = busMarkers.filter(marker => bounds.contains(marker.getLatLng()));
+	     let visibleBuses = Object.values(busMarkers).filter(
+		 marker => bounds.contains(marker.getLatLng())
+	     );
 	     document.getElementById('busCount').textContent = visibleBuses.length;
 	     
 	 } catch (error) {
