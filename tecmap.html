@@ -573,7 +573,7 @@
 	     1,     // christmas, new year 2026
 	     8, 9,  // carnaval 
 	     18, 19,// easter
-	     28,29,30,31,32,33,34,35, // summer holidays
+	     28,29,30,31,32,33,34, // summer holidays
 	     44,45, // autumn
 	     52,53  // christmas
 	 ];
@@ -706,10 +706,10 @@
 		 Les données temps-réel proviennent du <a href="https://www.letec.be/View/Open_Data_of_TEC/4296">site open data de LETEC</a>.
 		 Le serveur est hébergé par le SEGI de l'ULiège.
 		 Ce projet personnel n'est pas un outil officiel de <a href="https://www.letec.be/">LETEC</a> ni de l'ULiège. </p>
-	     `;
-	     
-	     panel.classList.add('open');
-	     }
+	 `;
+	 
+	 panel.classList.add('open');
+     }
 
 
 
@@ -784,7 +784,7 @@
 	     
 	 }
      }
-	 
+     
      function yesNoIcon(value) {
 	 if (value === "yes" || value === 1)
 	     return "✅";
@@ -793,7 +793,7 @@
 	 return "❔";
      }
 
-	     
+     
      //function to handle hover on stop link: add marker to map
      function handleStopHover(e) {
 	 const stopId = e.target.dataset.stopId;
@@ -848,7 +848,7 @@
 	 //console.log(tags);
 	 
 	 if (!tags) {
-		 html += `<b>${stopName}</b><br><br>Aucune information OSM.`;
+	     html += `<b>${stopName}</b><br><br>Aucune information OSM.`;
 	 }
 	 
 	 html += `<b>${tags.n}</b><br><br>`;
@@ -883,9 +883,9 @@
                 border-radius:4px;
                 box-shadow:0 1px 3px rgba(0,0,0,.25);
              ">
-											    `;
-		 }
-		 html += `<br><br><a href="https://www.openstreetmap.org/node/${tags.oid}" target="_blank">Voir/modifier sur OpenStreetMap
+	     `;
+	 }
+	 html += `<br><br><a href="https://www.openstreetmap.org/node/${tags.oid}" target="_blank">Voir/modifier sur OpenStreetMap
 </a>`;
 	 
 	 popup.setContent(html);
@@ -896,7 +896,7 @@
      // function to create stop popup content, deprecated not using online overpass anymore
      function createStopDescription_overpass(latlng,stopId = null,stopName = null) {
 
-	     const popup = L.popup({
+	 const popup = L.popup({
 	     className: "stop-popup",
 	     maxWidth: 240
 	 })
@@ -941,10 +941,10 @@
 		 html += `<i class="fas fa-lightbulb"></i> ${yesNoIcon(tags.lit)} `;
 		 html += `<i class="fas fa-trash"></i> ${yesNoIcon(tags.bin)} `;
 		 html += `<i class="fas fa-blind"></i> ${yesNoIcon(tags.tactile_paving)}<br>`;
-	 
+		 
 		 if (tags.panoramax) {
 		     const imageUrl = `https://api.panoramax.xyz/api/pictures/${tags.panoramax}/thumb.jpg`;
-											    html += `
+		     html += `
         <br>
         <img src="${imageUrl}"
              style="
@@ -953,7 +953,7 @@
                 border-radius:4px;
                 box-shadow:0 1px 3px rgba(0,0,0,.25);
              ">
-											    `;
+		     `;
 		 }
 		 html += `<br><br><a href="https://www.openstreetmap.org/${osm.type}/${osm.id}" target="_blank">Voir/modifier sur OpenStreetMap
 </a>`;
@@ -961,7 +961,7 @@
 	     popup.setContent(html);
 	 });
      }
-	 
+     
 
      
      // function to handle click on stop link -> pan map + popup with stop description
@@ -1061,7 +1061,8 @@
 
 	 // Retrieve schedule for this tripId based on theoretical static schedule
 	 const schedule = horairesData[tripId];  // horairesData is defined in the loaded .js file
-
+	 console.log(schedule);
+	 
 	 // Retrieve color based on bus delay to display +delay string
 	 const busColor = getBusDelayColor(delay,currentStopSequence);
 
@@ -1171,7 +1172,7 @@
 	 //return {id: nearest.id,tags: stopsMap[nearest.id]}
 	 return nearest.id || null;
 	 //return stopsMap[nearest.id] || null;
-	 }
+     }
 
      
 
@@ -1181,9 +1182,9 @@
 	 const route = bus.trip.route_short_name;
 
 	 const icons = {
-	 "tram": "fas fa-train-tram",     // Tram
-	 "metro": "fas fa-train-subway",    // Métro
-	 "default": "fas fa-bus"        // Bus normal
+	     "tram": "fas fa-train-tram",     // Tram
+	     "metro": "fas fa-train-subway",    // Métro
+	     "default": "fas fa-bus"        // Bus normal
 	 };
 
 	 // Determine icon based on local knowledge of vehicle type
@@ -1374,12 +1375,12 @@
 	 if (!JSON_DATA_FORMAT) //protobuf
 	     gtfsVehicleData = await loadGTFSProtobuf(RT_VEHICLE_API_URL);
 	 else { //json
-	     //console.log("Fetching vehicle positions from JSON cache server");
+	     console.log("Fetching vehicle positions from JSON cache server");
 	     const res = await fetch(RT_VEHICLE_API_URL);
 	     const data = await res.json();
 	     gtfsVehicleData = data || {};
 	 }
-	 //console.log("Données Vehicles chargées :", gtfsVehicleData);
+	 console.log("Données Vehicles chargées :", gtfsVehicleData);
      }
 
      async function waitForHorairesData(timeout = 20000, interval = 100) {
@@ -1416,22 +1417,22 @@
 	 return {
              data: gtfsData.entity.map(entity => ({
 		 vehicleId: entity.vehicle?.id || entity.id, // Certains objets semblent avoir vehicle.id, d'autres non
-	 latitude: entity.vehicle.position?.latitude || null,
-	       longitude: entity.vehicle.position?.longitude || null,
-	       speed: entity.vehicle.position?.speed || null,
-	       currentStopSequence: entity.vehicle.currentStopSequence || null,
-	       timestamp: entity.vehicle.timestamp || null,
-	       stopId: entity.vehicle.stopId || null,
-	       trip: entity.vehicle.trip ? {
-		   tripId: entity.vehicle.trip.tripId || null,
-		   startTime: entity.vehicle.trip.startTime || null,
-		   startDate: entity.vehicle.trip.startDate || null,
-		   routeId: entity.vehicle.trip.routeId || null,
-		   route_short_name: getRouteShortName(entity.vehicle.trip.routeId) || null,
-		   route_long_name: getRouteLongName(entity.vehicle.trip.routeId) || null,
-	       } : null,
-	       agency: entity.vehicle.trip?.routeId?.split("-")[0] || null // Déduire l'agence depuis l'ID de la route
-     }))
+		 latitude: entity.vehicle.position?.latitude || null,
+		 longitude: entity.vehicle.position?.longitude || null,
+		 speed: entity.vehicle.position?.speed || null,
+		 currentStopSequence: entity.vehicle.currentStopSequence || null,
+		 timestamp: entity.vehicle.timestamp || null,
+		 stopId: entity.vehicle.stopId || null,
+		 trip: entity.vehicle.trip ? {
+		     tripId: entity.vehicle.trip.tripId || null,
+		     startTime: entity.vehicle.trip.startTime || null,
+		     startDate: entity.vehicle.trip.startDate || null,
+		     routeId: entity.vehicle.trip.routeId || null,
+		     route_short_name: getRouteShortName(entity.vehicle.trip.routeId) || null,
+		     route_long_name: getRouteLongName(entity.vehicle.trip.routeId) || null,
+		 } : null,
+		 agency: entity.vehicle.trip?.routeId?.split("-")[0] || null // Déduire l'agence depuis l'ID de la route
+	     }))
 	 };
      }
 
@@ -1452,7 +1453,8 @@
 	 }
 	 first=0;
 	 transformAlertGTFSData(gtfsAlertData);
-	 //console.log(alertsByRoute);
+	 console.log(alertsByRoute);
+	 console.log(alertsByStop);
 	 
      }
 
@@ -1664,23 +1666,23 @@
 		 const { vehicleId, latitude, longitude, speed, trip, stopId, currentStopSequence } = bus;
 
 		 if (latitude != null && longitude != null) {
-		 
+		     
 		     //late client-side set of sn & ln, TO DO: could be set in server side
 		     trip.route_short_name = getRouteShortName(trip.routeId) || null;
 		     trip.route_long_name= getRouteLongName(trip.routeId) || null;
-		 
+		     
 		     // If the filter is not null, we skip bus lines which are not in the filter
 		     if (filterValues.length > 0 && filterValues[0] != '' && !(trip.route_short_name.toString() in filterLineStops)) return;
-		 
+		     
 		     const nextStopName = getStopName(bus.stopId,stopsData);
 		     const startPoint = getStartPoint(bus.trip.tripId);
 		     const endPoint = getEndPoint(bus.trip.tripId);
-		 
+		     
 		     //Compute delay based on static schedule 
 		     const schedule = horairesData[bus.trip.tripId];
 		     //const delay = schedule ? estimateDelay_deprecated(schedule,bus.currentStopSequence,bus.timestamp) : 0;
 		     const delay = schedule ? estimateDelay(bus.trip.tripId) : 0;
-		 
+		     
 		     const filterStop = filterLineStops[bus.trip.route_short_name];
 		     let filterStopTime = "";
 		     if (filterStop) {
@@ -1688,9 +1690,8 @@
 			 if (!filterStopTime) return;
 		     }
 
-		     const routeIdForAlerts = bus.trip.routeId.split("-")[0]; //alerts are stored using simplified id
-		     const alerts = alertsByRoute[routeIdForAlerts] || [];
-		 
+		     const alerts = alertsByRoute[bus.trip.routeId] || [];
+		     
 		     // Icon and color for bus marker 
 		     //const busColor = getBusDelayColor(delay);
 		     const busColor = getBusColor(delay,bus.speed,bus.currentStopSequence);
@@ -1714,7 +1715,7 @@
          <a href="#" onclick="showTripScheduleInPanel('${trip.routeId}','${trip.route_short_name}','${bus.trip.tripId}', '${bus.currentStopSequence}', '${bus.stopId}', '${delay}', '${filterStop}')"><button style="background:${getBusDelayColor(delay,bus.currentStopSequence)}; color:#fff; border:none; border-radius:4px; z-index: 1001; cursor:pointer; position: left">
 	       🕔 Voir l'horaire temps-réel de ce bus
 	       </button></a><br>
-${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+routeIdForAlerts+'\')"> <button id="open-alert-btn-popup">📢 Voir les alertes sur cette ligne ('+alerts.length+')</button></a><br>': ""}
+${alerts.length>0 ? '<a href="#" onclick="showAlertsInPanel(\''+bus.trip.routeId+'\')"> <button id="open-alert-btn-popup">📢 Voir les alertes sur cette ligne ('+alerts.length+')</button></a><br>': ""}
 		     `;
 
 		     // Put the marker on the map
