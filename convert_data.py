@@ -327,7 +327,7 @@ convert_routes_csv_to_js2(routes_csv_input_filename, routes_js_output_filename)
 #convert_stops_csv_to_js_with_coords(stops_csv_input_filename, stops_js_output_filename)
 convert_stops_csv_to_js_with_coords_and_osm(stops_csv_input_filename, stops_js_output_filename,stops_osmjson_input_filename)
 
-sys.exit()
+#sys.exit()
 
 #generate horaires data for each region on SEM, SEM_VAC, DIM, MER, SAM days
 convert_stop_times_csv_to_js_by_region(
