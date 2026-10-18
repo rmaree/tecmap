@@ -131,6 +131,12 @@ def convert_stop_times_csv_to_js_by_region(csv_filename, output_dir, day_type, f
                 "seq": int(row["stop_sequence"])
             })
 
+
+    # Sort stops within each trip by stop_sequence
+    for region, trips in horaires_by_region.items():
+        for trip_id, stops in trips.items():
+            stops.sort(key=lambda stop: stop["seq"])
+            
     # Write files per region and day types
     for region, data in horaires_by_region.items():
 
