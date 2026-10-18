@@ -247,7 +247,7 @@ def convert_stops_csv_to_js_with_coords_and_osm(csv_filename,
 
             for key, value in tags.items():
                 if key.startswith("ref:TEC"):
-                    stop_id = value
+                    stop_id = f"gs:tec:{value}"
                     break
 
             if not stop_id:
@@ -315,7 +315,7 @@ def convert_stops_csv_to_js_with_coords_and_osm(csv_filename,
     with open(js_filename, "w", encoding="utf-8") as js_file:
         js_file.write(f"const stopsData={json_data};")
 
-    print(f"Conversion static stops done : {js_filename}")
+    print(f"Conversion static stops done with OSM data: {js_filename}")
 
 
     
@@ -327,7 +327,8 @@ convert_routes_csv_to_js2(routes_csv_input_filename, routes_js_output_filename)
 #convert_stops_csv_to_js_with_coords(stops_csv_input_filename, stops_js_output_filename)
 convert_stops_csv_to_js_with_coords_and_osm(stops_csv_input_filename, stops_js_output_filename,stops_osmjson_input_filename)
 
-exit
+sys.exit()
+
 #generate horaires data for each region on SEM, SEM_VAC, DIM, MER, SAM days
 convert_stop_times_csv_to_js_by_region(
     stop_times_csv_input_filename,
