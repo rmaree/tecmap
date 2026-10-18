@@ -13,6 +13,7 @@ loadEnvFile('.env');
 console.log(process.env);
 
 const CONFIG = {
+    KK: process.env.KK,
     vehicleUrl: process.env.RT_VEHICLE_API_URL,
     alertUrl: process.env.RT_ALERT_API_URL,
     updateUrl: process.env.RT_UPDATE_API_URL,
@@ -56,8 +57,10 @@ function log(message, force = false) {
 async function fetchAndConvertVehicles() {
   try {
     log(`[${new Date().toISOString()}] Fetching vehicle data...`);
-    const headers = {};
-    const response = await fetch(CONFIG.vehicleUrl, { headers });
+      //const headers = {};
+      const headers = {"bmc-partner-key": CONFIG.KK};
+      const response = await fetch(CONFIG.vehicleUrl, { headers });
+      
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -118,7 +121,8 @@ async function fetchAndConvertVehicles() {
 async function fetchAlertsRaw() {
     try {
 	log(`[${new Date().toISOString()}] Fetching Alert data...`);
-	const headers = {};
+	//const headers = {};
+	const headers = {"bmc-partner-key": CONFIG.KK};
 	const response = await fetch(CONFIG.alertUrl, { headers });
       
     if (!response.ok) {
@@ -147,7 +151,8 @@ async function fetchAndConvertAlerts() {
   try {
     log(`[${new Date().toISOString()}] Fetching alert data...`);
     
-    const headers = {};
+      //const headers = {};
+      const headers = {"bmc-partner-key": CONFIG.KK};
     const response = await fetch(CONFIG.alertUrl, { headers });
     
     if (!response.ok) {
@@ -223,7 +228,8 @@ async function fetchAndConvertUpdates() {
   try {
     log(`[${new Date().toISOString()}] Fetching trip updates data...`);
     
-    const headers = {};
+      //const headers = {};
+      const headers = {"bmc-partner-key": CONFIG.KK};
     const response = await fetch(CONFIG.updateUrl, { headers });
     
     if (!response.ok) {
@@ -374,7 +380,7 @@ app.get('/api/delays', (req, res) => {
 // Status endpoint to check server is running and last updates
 app.get('/status', (req, res) => {
   res.json({
-    status: 'okdoki',
+    status: 'okdoki_v2',
     uptime: process.uptime(),
     lastUpdate: cachedData.lastUpdate,
       dataAvailable: {
@@ -408,7 +414,7 @@ app.get('/', (req, res) => {
 // ----------------------------------------------------------------------------------
 // Init and start server
 async function init() {
-    log('GTFS Cache Server starting...');
+    log('GTFS Cache Server v2 starting...');
     log('Configuration:', {
       vehicleUrl: CONFIG.vehicleUrl,
       alertUrl: CONFIG.alertUrl,
