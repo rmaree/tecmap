@@ -1,25 +1,30 @@
 ## Introduction to tecmap
 "Transports en Commun" map is a lightweight map to locate bus in real-time using open data. On the map below, buses coordinates are refreshed every 10 seconds and are colored according to delay (by comparing real-time data to static theoretical timetables which can be displayed by clicking on one bus: red > 5 minutes, 0 < orange < 5 minutes, green on time).  You can get timelines and other details when you click on a bus marker on the map.
-![tecmap](tecmap-liege.jpg?raw=true "Tecmap in Liège, Belgium")
+![tecmap](tecmap-liege.jpg?raw=true "tecmap in Liège, Belgium")
 
 A simple filter (by bus line numbers) allows to only display the buses of interest (e.g. "21 58" will display buses following lines 21 and 58; "2?guill 58?guill" will display buses of line 2 that will pass through a stop which name includes "guill" as well as expected time schedule, and buses nr 58 that will pass through a stop name including "guill" which allow to organize your commute based on real-time data).
-![tecmap](tecmap-filters.jpg?raw=true "Filter in Tecmap")
+![tecmap](tecmap-filters.jpg?raw=true "Filter in tecmap")
 
 Alerts (disruptions) can be displayed for each line numbers to know about cancelled trips and stops.
-![tecmap](tecmap-alerts.jpg?raw=true "Alerts in Tecmap")
+![tecmap](tecmap-alerts.jpg?raw=true "Alerts in tecmap")
+
+Various information abouts stops can be displayed.
+![tecmap](tecmap-info-bus-stop.jpg?raw=true "Bus stop information in tecmap")
 
 The typical use cases include individuals wanting to know if their buses are on time to plan their trips, e.g. someone at home who doesn't want to wait 10 minutes outside in the cold, or someone who has the possibility of taking several different buses and wants to know which one will arrive first, or someone at their desk who wants to optimize their life and work until the last minute before their bus comes, or someone having a good time with a loved one but not wanting to miss the very last bus ;) or wanting to wait in a shady place rather than at the bus stop in direct sunlight. Another use case is someone who wants to discover new places they can reach with public transport without knowing the existing routes a priori. Please note no automatic planning is provided, you must use your mental calculation skills to construct your route, which in principle consumes less energy than running a routing algorithm on GAFAM servers. ;)
+If you are looking for a routing tech stack we recommend [https://transitous.org/](https://transitous.org/).
 
 ## Tech stack
-tecmap has been developed using HTML+CSS+Javascript only to be run through a single HTML page without any web framework. It relies on transit data locally stored, and real-time data coming from a remote API using ProtoBuf format (for data in Wallonia you have to submit a request to get the data here: [https://www.letec.be/View/Open_Data_of_TEC/4296](https://www.letec.be/View/Open_Data_of_TEC/4296)).
-This has been tested with GTFS static transit data for Wallonia in Belgium (TEC, downloaded from [https://beltac.tec-wl.be](https://beltac.tec-wl.be/))
+tecmap has been developed using HTML+CSS+Javascript only to be run through a single HTML page without any web framework. It relies on transit data locally stored, and real-time data coming from a remote API using ProtoBuf format (for data in Wallonia you have to submit a request to get the data here: [https://www.letec.be/View/Open_Data_of_TEC/4296](https://www.letec.be/View/Open_Data_of_TEC/4296) or [https://data.belgianmobility.io/](https://data.belgianmobility.io/)).
+This has been tested with GTFS static transit data for Wallonia in Belgium (LETEC, downloaded from [https://data.belgianmobility.io/](https://data.belgianmobility.io/))
 including routes and stops, and real-time traffic information assumed to be accessible through an API that returns it in ProtoBuf format.
 
+For information about bus stops, we use [http://openstreetmap.org/](http://openstreetmap.org/) data extracted using Overpass API and converted into JSON.
 
 ## Data preparation on the client side
 1. Create `data/` local directory
    
-2. Download into `data/` local directory GTFS static routes and stops data (latest version from [https://beltac.tec-wl.be](https://beltac.tec-wl.be/Current%20GTFS/) or [https://busmaps.com/en/belgium/TEC-Transit/tec-transit](https://busmaps.com/en/belgium/TEC-Transit/tec-transit) )
+2. Download into `data/` local directory GTFS static routes and stops data (latest version from [https://api-management-opendata-production.azure-api.net/api/gtfs/feed/tec/static/](https://api-management-opendata-production.azure-api.net/api/gtfs/feed/tec/static/).
    
 3. Convert GTFS static and dynamic data using `python3 convert_data.py` script:
 
@@ -32,10 +37,14 @@ including routes and stops, and real-time traffic information assumed to be acce
 
 4. Get the latest version of https://github.com/google/transit/blob/master/gtfs-realtime/proto/gtfs-realtime.proto (ProtoBuf file definition) and copy it in data/
 
+5. For information about bus stops (presence of bench, covered, lit, bin, tactile_paving, picture from Panoramax), use OverPass: area["ISO3166-1"="BE"]->.be; node["highway"="bus_stop"]["operator"="TEC"](area.be) and node["public_transport"="platform"]["operator"="TEC"](area.be);   into raw OSM data. The previously run script convert_data.py will inject OSM information into the stops_with_coords.js file. 
+
+out body geom;
+  
 
 ## Edit tecmap.html
 1. Edit the `loadScheduleFile()` function in **tecmap.html** if local files are not located in data/ or named in another way if you modified the convert_data.py script.
-3. Edit **RT_VEHICLE_API_URL**, **RT_ALERT_API_URL**, **RT_UPDATE_API_URL** in **config.js** so that it refers to the API endpoints that returns real-time traffic data (vehicle positions, alerts, and updates/delays) either in ProtoBuf format (by default) using the aforementioned Protocol definition file, or in JSON format (if you install the cache server in which case you should edit tecmap.html and set JSON_DATA_FORMAT=1;). If the remote data format is ProtoBug functions transformVehicleGTFSData and transformAlertGTFSData convert the Protobuf data into a JSON structure for easier manipulation, e.g. formatted as follows for Vehicles:
+3. Edit **RT_VEHICLE_API_URL**, **RT_ALERT_API_URL**, **RT_UPDATE_API_URL** in **config.js** so that it refers to the API endpoints that returns real-time traffic data (vehicle positions, alerts, and updates/delays) either in ProtoBuf format (by default) using the aforementioned Protocol definition file, or in JSON format (if you install the cache server in which case you should edit tecmap.html and set JSON_DATA_FORMAT=1;). If the remote data format is ProtoBuf functions transformVehicleGTFSData and transformAlertGTFSData convert the Protobuf data into a JSON structure for easier manipulation, e.g. formatted as follows for Vehicles:
 
 ```
 {
@@ -91,11 +100,11 @@ In the server/ directory, we provide prototype code for a simple server installa
 
 ## Future plans, contact
 I am aware of the limitations of such a client-side approach. 
-Having a database to store routes and stops and an API called from the web client would be more elegant but for the moment I wanted to keep it very simple so that anyone can deploy it easily.
+Having a database to store routes and stops and an API called from the web client would be more elegant but for the moment I wanted to keep it very simple so that anyone can deploy it easily. Nice more advanced open-source frameworks exist e.g. [https://transitous.org/](https://transitous.org/) used by [https://cartes.app](https://cartes.app/) .
 Please feel free to submit Issues or contact me.
 
 ## Acknowledgments
-The map uses the open access [http://openstreetmap.org/](http://openstreetmap.org/) data and the open-source [https://leafletjs.com/](https://leafletjs.com/) Javascript library.
+The map uses the open access [http://openstreetmap.org/](http://openstreetmap.org/) data (tiles and information about stops) and the open-source [https://leafletjs.com/](https://leafletjs.com/) Javascript library.
 We use open data from [TEC](https://www.letec.be/) without affiliation to this organization.
 
 
