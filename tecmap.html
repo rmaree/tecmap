@@ -1187,26 +1187,24 @@
 	 //return stopsMap[nearest.id] || null;
      }
 
+     // Determine icon based on local knowledge of vehicle type
+     function getVehicleIconClass(route) {
+	 if (route === "T1") {
+             return "fas fa-train-tram";
+	 }
+
+	 if (["M1", "M2", "M3", "M4", "M5"].includes(route)) {
+             return "fas fa-train-subway";
+	 }
+
+	 return "fas fa-bus";
+     }
      
-
-
      // Create a specific vehicle marker icon based on vehicle type and buscolor (based on delay)
      function makeVehicleIcon(bus, busColor) {
 	 const route = bus.trip.route_short_name;
-
-	 const icons = {
-	     "tram": "fas fa-train-tram",     // Tram
-	     "metro": "fas fa-train-subway",    // Métro
-	     "default": "fas fa-bus"        // Bus normal
-	 };
-
-	 // Determine icon based on local knowledge of vehicle type
-	 let iconClass = icons.default;
-	 if (route === "T1") { //T1 in Liege is the tram
-	     iconClass = icons.tram;
-	 } else if (["M1","M2","M3","M4","M5"].includes(route)) {  // in Charleroi
-	     iconClass = icons.metro;
-	 }
+	 const iconClass = getVehicleIconClass(route);
+	 
 	 // Use of italic for express buses (E... in Wallonia)
 	 const numberStyle = route.startsWith("E") ? "font-style: italic;" : "";
 
@@ -1719,7 +1717,7 @@
          <!-- ${positionHTML} //-->
          <!-- <i class="fas fa-map-marker-alt"></i> Position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} <br> //-->
          <i class="fas fa-tachometer-alt"></i> Vitesse: ${speed ? speed + " km/h" : "N/A"} <br>
-         <i class="fas fa-bus"></i> Prochain arrêt: ${nextStopName} <span style="color:${getBusDelayColor(delay,bus.currentStopSequence)}; font-weight: bold;">${printDelay(delay)}</span><br>
+         <i class="${getVehicleIconClass(trip.route_short_name)}"></i> Prochain arrêt: ${nextStopName} <span style="color:${getBusDelayColor(delay,bus.currentStopSequence)}; font-weight: bold;">${printDelay(delay)}</span><br>
          <a href="#" onclick="showTripScheduleInPanel('${trip.routeId}','${trip.route_short_name}','${bus.trip.tripId}', '${bus.currentStopSequence}', '${bus.stopId}', '${delay}', '${filterStop}')"><button style="background:${getBusDelayColor(delay,bus.currentStopSequence)}; color:#fff; border:none; border-radius:4px; z-index: 1001; cursor:pointer; position: left">
 	       🕔 Voir l'horaire temps-réel de ce véhicule
 	       </button></a><br>
