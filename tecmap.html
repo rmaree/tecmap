@@ -821,15 +821,21 @@
      }   
 
 
+     function getCleanStopId(stopid) {
+	 if (stopid) {
+	     return stopid.replace(/^gs:tec:/, '');
+	 }
+     }
 
-     function createStopDescription(latlng,stopId = null,stopName = null) {
+      function createStopDescription(latlng,stopId = null,stopName = null) {
+	 let cleanStopId = getCleanStopId(stopId);
 	 const popup = L.popup({
 	     className: "stop-popup",
 	     maxWidth: 240,
 	 })
-			.setLatLng(latlng)
-			.setContent(`<b>${stopName}</b><br><i class="fa-solid fa-calendar"></i> <a href="https://www.letec.be/stops/${stopId}" target="_blank">Infos de passages (LETEC)</a><br>Chargement...`)
-			.openOn(map)
+			    .setLatLng(latlng)
+			    .setContent(`<b>${stopName}</b><br><i class="fa-solid fa-calendar"></i> <a href="https://www.letec.be/stops/${cleanStopId}" target="_blank">Infos de passages (LETEC)</a><br>Chargement...`)
+			    .openOn(map)
 	 
 
 	 let html = ``;
@@ -841,6 +847,7 @@
 	 }
 	 else {
 	     stopId = getStopInfoByCoords(latlng,stopsData);
+	     cleanStopId = getCleanStopId(stopId);
 	     tags = stopsData[stopId];
 	     //we move the popup at the location of the closest stop
 	     popup.setLatLng(([tags.la, tags.lo]))
@@ -852,7 +859,7 @@
 	 }
 	 
 	 html += `<b>${tags.n}</b><br><br>`;
-	 html += `<i class="fa-solid fa-calendar"></i> <a href="https://www.letec.be/stops/${stopId}" target="_blank">Infos de passages (LETEC)</a><br>`;
+	 html += `<i class="fa-solid fa-calendar"></i> <a href="https://www.letec.be/stops/${cleanStopId}" target="_blank">Infos de passages (LETEC)</a><br>`;
 
 	 // Display routes based on OSM tag route_ref:TEC* (applies to TECL, TECX,...)
 	 routes = tags.rr.split(";");
