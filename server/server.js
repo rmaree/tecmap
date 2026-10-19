@@ -17,7 +17,8 @@ const CONFIG = {
     vehicleUrl: process.env.RT_VEHICLE_API_URL,
     alertUrl: process.env.RT_ALERT_API_URL,
     updateUrl: process.env.RT_UPDATE_API_URL,
-    refreshInterval: process.env.RT_REFRESH_RATE || 10000, 
+    refreshInterval: process.env.RT_REFRESH_RATE || 10000,
+    alertsRefreshInterval: 1 * 60 * 60 * 1000, // one alert request per hour
     apiKey: process.env.API_KEY || '',
     verboseLogging: process.env.VERBOSE_LOGGING === 'true' // by default false in prod
 };
@@ -61,7 +62,8 @@ async function fetchAndConvertVehicles() {
       const headers = {"bmc-partner-key": CONFIG.KK};
       const response = await fetch(CONFIG.vehicleUrl, { headers });
       
-    
+      console.log(response);
+      
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -146,83 +148,6 @@ async function fetchAlertsRaw() {
 
 
 // ----------------------------------------------------------------------------------
-// Get and convert alert data from GTFS protobuf (currently not used, lacking static gtfs data for readable cancellations)
-async function fetchAndConvertAlerts() {
-  try {
-    log(`[${new Date().toISOString()}] Fetching alert data...`);
-    
-      //const headers = {};
-      const headers = {"bmc-partner-key": CONFIG.KK};
-    const response = await fetch(CONFIG.alertUrl, { headers });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const buffer = await response.arrayBuffer();
-    const feed = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(
-      new Uint8Array(buffer)
-    );
-
-      const entities = feed.entity
-    // Convert into usable JSON
-      const formattedAlertData = entities.map(entity => {
-      if (!entity.alert) return null;
-
-	  const alert = entity.alert;
-	  if (!alert || !Array.isArray(alert.informedEntity)) return;
-
-	  let startDate = ' ';
-	  let endDate = ' ';
-	  if (alert.activePeriod) {
-	      startDate = utils.timestampToDate(alert.activePeriod[0].start);
-	      endDate = utils.timestampToDate(alert.activePeriod[0].end);
-	  }
-	  //here we should extract and convert info from informedEntity for precise cancellation information
-	  
-      return {
-        id: entity.id,
-        //activePeriods: alert.activePeriod?.map(period => ({
-        //  start: period.start?.toNumber() || null,
-        //  end: period.end?.toNumber() || null
-        //})) || [],
-        //informedEntities: alert.informedEntity?.map(ie => ({
-        //  agencyId: ie.agencyId || null,
-        //  routeId: ie.routeId || null,
-        //  routeType: ie.routeType || null,
-        //  tripId: ie.trip?.tripId || null,
-        //  stopId: ie.stopId || null
-        //})) || [],
-        //cause: alert.cause || null,
-        //effect: alert.effect || null,
-          url: alert.url?.translation?.[0]?.text || null,
-	  //tripid: tripid,
-	  start: startDate,
-	  end: endDate,
-	  //starttime: starttime,
-	  stops: [],
-        //headerText: alert.headerText?.translation?.[0]?.text || null,
-	description: alert.descriptionText?.translation?.find(t => t.language === 'fr-be')?.text 
-	      || alert.descriptionText?.translation?.[0]?.text 
-	      || ''
-      };
-    }).filter(a => a !== null);
-
-    log(formattedAlertData);
-    cachedData.alerts = formattedAlertData;
-    cachedData.lastUpdate.alerts = new Date();
-    
-    log(`[${new Date().toISOString()}] Alert data updated: ${formattedAlertData.length} alerts`);
-    
-    return formattedAlertData;
-  } catch (error) {
-    console.error('Error fetching alert data:', error.message);
-    return null;
-  }
-}
-
-
-// ----------------------------------------------------------------------------------
 // Get and convert updates (delays) data from GTFS protobuf to JSON
 async function fetchAndConvertUpdates() {
   try {
@@ -260,35 +185,6 @@ async function fetchAndConvertUpdates() {
       if (tripDelay !== null) {
         delayByTrip[tripId] = Math.round(tripDelay/60); // delay in minutes
       }
-
-      // we don't need more detailed updates
-      // const updateInfo = {
-      //   id: entity.id,
-      //   tripId: tripId,
-      //   routeId: tripUpdate.trip?.routeId || null,
-      //   startTime: tripUpdate.trip?.startTime || null,
-      //   startDate: tripUpdate.trip?.startDate || null,
-      //   scheduleRelationship: tripUpdate.trip?.scheduleRelationship || null,
-      //   delay: tripDelay,
-      //   timestamp: tripUpdate.timestamp?.toNumber() || null,
-      //   vehicleId: tripUpdate.vehicle?.id || null,
-      //   stopTimeUpdates: tripUpdate.stopTimeUpdate?.map(stu => ({
-      //     stopSequence: stu.stopSequence || null,
-      //     stopId: stu.stopId || null,
-      //     arrival: stu.arrival ? {
-      //       delay: stu.arrival.delay || null,
-      //       time: stu.arrival.time?.toNumber() || null,
-      //       uncertainty: stu.arrival.uncertainty || null
-      //     } : null,
-      //     departure: stu.departure ? {
-      //       delay: stu.departure.delay || null,
-      //       time: stu.departure.time?.toNumber() || null,
-      //       uncertainty: stu.departure.uncertainty || null
-      //     } : null,
-      //     scheduleRelationship: stu.scheduleRelationship || null
-      //   })) || []
-      // };
-      //formattedUpdateData.push(updateInfo);
     });
 
     //cachedData.updates = formattedUpdateData;
@@ -408,9 +304,6 @@ app.get('/', (req, res) => {
 });
 
 
-
-
-
 // ----------------------------------------------------------------------------------
 // Init and start server
 async function init() {
@@ -426,15 +319,13 @@ async function init() {
     // Get first data when server starts
     await Promise.all([
 	fetchAndConvertVehicles(),
-	fetchAndConvertAlerts(),
 	fetchAlertsRaw(),
 	fetchAndConvertUpdates()
     ]);
 
   // Update data
     setInterval(fetchAndConvertVehicles, CONFIG.refreshInterval);
-    setInterval(fetchAndConvertAlerts, CONFIG.refreshInterval);
-    setInterval(fetchAlertsRaw, CONFIG.refreshInterval);
+    setInterval(fetchAlertsRaw, CONFIG.alertsRefreshInterval);
     setInterval(fetchAndConvertUpdates, CONFIG.refreshInterval);
 
   // Start HTTP server
